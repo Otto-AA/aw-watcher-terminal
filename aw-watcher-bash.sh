@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-# echo "Processing data [$1]"
+python3 ~/.local/bin/aw-watcher-bash.py "$1" "$PWD"
