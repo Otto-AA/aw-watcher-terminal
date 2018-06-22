@@ -38,4 +38,3 @@ fi
 - generalizing aw-watcher-bash for all terminals
 - check for performance issues
 - async calling
-- support for nested quotes

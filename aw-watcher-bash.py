@@ -42,7 +42,7 @@ parser.add_argument('--command', dest='command', help='the command entered by th
 parser.add_argument('--path', dest='path', help='the path of the shell')
 
 def on_pipe_message(message):
-    print('Received message')
+    print('Received message: {}'.format(message))
     try:
         args = parse_pipe_message(message)
     except:
@@ -58,6 +58,8 @@ def parse_pipe_message(message):
 
 
 def listen_to_named_pipe(pipe_path, callback):
+    if os.path.exists(pipe_path):
+        os.remove(pipe_path)
     if not os.path.exists(pipe_path):
         print("Creating pipe {}".format(pipe_path))
         os.mkfifo(pipe_path)
@@ -69,7 +71,6 @@ def listen_to_named_pipe(pipe_path, callback):
             if message:
                 callback(message)
             sleep(0.5)
-
 
 if __name__ == '__main__':
     listen_to_named_pipe("/tmp/aw-watcher-bash-pipe", on_pipe_message)
