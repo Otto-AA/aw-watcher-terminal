@@ -34,7 +34,7 @@ def send_event(event_data):
 
     # The event returned from insert_event has been assigned an id by aw-server
     assert inserted_event.id is not None
-    print("Successfully sent event")
+    print("Successfully sent event\n")
     
 # Define parser for bash activity events
 parser = argparse.ArgumentParser(description='Process bash activity.')
@@ -43,8 +43,11 @@ parser.add_argument('--path', dest='path', help='the path of the shell')
 
 def on_pipe_message(message):
     print('Received message')
-    print(message)
-    args = parse_pipe_message(message)
+    try:
+        args = parse_pipe_message(message)
+    except:
+        return print("Error while parsing args")
+    print(args)
     send_event({
         'command': args.command,
         'path': args.path
