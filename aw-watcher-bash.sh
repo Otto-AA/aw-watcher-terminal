@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-python3 ~/.local/bin/aw-watcher-bash.py "$1" "$PWD"
+echo "--command \"$1\" --path \"$PWD\"" > "/tmp/aw-watcher-bash-pipe"
