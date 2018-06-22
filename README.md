@@ -1,4 +1,4 @@
-# aw-watcher-bash
+# aw-watcher-bash [WIP]
 
 ## Installation
 
