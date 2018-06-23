@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-import sys
 import os
 import argparse
 import shlex
 
 from time import sleep
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from aw_core.models import Event
 from aw_client import ActivityWatchClient
 
