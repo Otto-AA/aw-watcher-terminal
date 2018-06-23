@@ -65,11 +65,7 @@ def init_message_parser():
 
 
 def handle_pipe_message(message):
-    try:
-        if config['disabled']:
-            logger.debug("Skipping because watcher is disabled")
-            return
-        
+    try:        
         for line in message.split('\n'):
             if not len(line):
                 continue
@@ -83,7 +79,22 @@ def handle_pipe_message(message):
                 return
             args_dict = vars(args)
 
+            # Handle disabling
+            if args_dict['command'] == "disable_terminal_watcher":
+                logger.info("Disabling due to disable_terminal_watcher command")
+                config["disabled"] = True
+                return
+            elif args_dict['command'] == "enable_terminal_watcher":
+                logger.info("Enabling due to enable_terminal_watcher command")
+                config["disabled"] = False
+                return
+            if config['disabled']:
+                logger.debug("Skipping because watcher is disabled")
+                return
+            
+            # Send event
             send_event(args_dict)
+
     except Exception as e:
         logger.error("Unexpected Error: {}".format(e))
         traceback.print_exc()
