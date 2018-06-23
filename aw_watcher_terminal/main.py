@@ -11,29 +11,24 @@ from datetime import datetime, timezone
 from aw_core.models import Event
 from aw_core.log import setup_logging
 from aw_client import ActivityWatchClient
+from aw_watcher_terminal.config import load_config # TODO: Check why .config throws errors and fix
 
-config = {
-    'pipe_path': '/tmp/aw-watcher-terminal-pipe',
-    'client_id': 'aw-watcher-terminal-test-client',
-    'bucket_name': 'aw-watcher-terminal',
-    'event_type': 'app.terminal.activity',
-    'testing': True,
-    'disabled': False,
-    'log_file': '/dev/null',  # TODO: Change log file
-    'verbose': True
-}
+config = None
 client = None
 bucket_id = None
 parser = None
 logger = logging.getLogger(__name__)
 
 def main():
-    load_config()
+    global config
+
+    config = load_config()
 
     setup_logging(name="aw-watcher-terminal", testing=config['testing'],
                 verbose=config['verbose'], log_stderr=True, log_file=True)
     
     logger.info("Starting aw-watcher-terminal")
+    logger.info("Loaded config: {}".format(config))
 
     init_client()
     init_message_parser()
@@ -41,11 +36,6 @@ def main():
     on_named_pipe_message(config['pipe_path'], handle_pipe_message)
 
     logger.info("Listening for pipe messages...")
-
-
-def load_config():
-    """[TODO] Load the configurations and parse the CLI arguments"""
-    pass
 
 
 def init_client():
