@@ -34,7 +34,7 @@ def main():
     in front of every
     double quote (") and every backslash preceeding a double quote (\")
     For instance, the command 'echo "Hello \"World\""' should be escaped
-    like '--command \"Hello \\\"World\\\"\"'
+    like '--command echo \"Hello \\\"World\\\"\"'
     """
     global config
 
@@ -126,7 +126,7 @@ def parse_pipe_message(message: str) -> Union[argparse.Namespace, None]:
     """Parse pipe message to dict containing event data"""
     try:
         return parser.parse_args(shlex.split(message))
-    except argparse.ArgumentError as e:
+    except (argparse.ArgumentError, SystemExit, ValueError) as e:
         logger.error("Error while parsing args")
         logger.error("Parse error: {}".format(e))
         return None
