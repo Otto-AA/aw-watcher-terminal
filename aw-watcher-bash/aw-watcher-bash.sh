@@ -37,7 +37,7 @@ escape_quotes() {
 command="$(escape_quotes "$1")"
 path="$PWD"
 path="$(escape_quotes "$path")"
-pipe_path="/tmp/aw-watcher-bash-pipe"
+pipe_path="/tmp/aw-watcher-terminal-pipe"
 
 # send message to pipe
 echo "--command \"$command\" --path \"$path\"" > "$pipe_path" &
