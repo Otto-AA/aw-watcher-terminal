@@ -35,9 +35,10 @@ escape_quotes() {
 
 # Set variables
 command="$(escape_quotes "$1")"
-path="$PWD"
-path="$(escape_quotes "$path")"
+path="$(escape_quotes "$PWD")"
+shell='bash'
+shell_version="$BASH_VERSION"
 pipe_path="/tmp/aw-watcher-terminal-pipe"
 
 # send message to pipe
-echo "--command \"$command\" --path \"$path\"" > "$pipe_path" &
+echo "--command \"$command\" --path \"$path\" --shell \"$shell\" --shell-version \"$shell_version\"" > "$pipe_path" &

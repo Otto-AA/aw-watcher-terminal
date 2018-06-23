@@ -55,6 +55,8 @@ def init_message_parser():
     parser = argparse.ArgumentParser(description='Process bash activity.')
     parser.add_argument('--command', dest='command', help='the command entered by the user')
     parser.add_argument('--path', dest='path', help='the path of the shell')
+    parser.add_argument('--shell', dest='shell', help='the name of the shell used')
+    parser.add_argument('--shell-version', dest='shell_version', help='the version of the shell used')
     print("Initialized argparser")
 
 
@@ -62,16 +64,18 @@ def handle_pipe_message(message):
     if config['disabled']:
         return
     
-    print('Received message: {}'.format(message))
-    try:
-        args = parse_pipe_message(message)
-    except:
-        return print("Error while parsing args")
-    print(args)
-    send_event({
-        'command': args.command,
-        'path': args.path
-    })
+    for line in message.split('\n'):
+        if not len(line):
+            continue
+        
+        print('Received message: {}'.format(line))
+        try:
+            args = parse_pipe_message(line)
+            argparse_dict = vars(args)
+        except:
+            return print("Error while parsing args")
+        
+        send_event(argparse_dict)
 
 
 def parse_pipe_message(message):
