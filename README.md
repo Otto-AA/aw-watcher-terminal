@@ -14,13 +14,16 @@ curl https://raw.githubusercontent.com/rcaloras/bash-preexec/master/bash-preexec
 make build
 ```
 
-### Start aw-watcher-bash.py
-
-_Note: As of now, you always need to start before using the terminal_
+### Start aw-watcher-terminal.py
 
 ```bash
-python3 ./.local/bin/aw-watcher-bash.py`
+# If not already running, start the aw-server in a different terminal
+aw-server &
+# Start aw-watcher-terminal.py
+python3 ./.local/bin/aw-watcher-terminal.py
 ```
+
+Currently, you can pass it the flags `--testing` for using the test server and `--verbose` for more detailed logging
 
 ### Add following code to the bottom of your ~/.bashrc file
 
@@ -32,9 +35,13 @@ if [[ -f ~/.bash-preexec.sh ]]; then
 fi
 ```
 
+### Open a new terminal and start executing commands
+
+```bash
+echo "Finished installation"
+```
+
 ## Future plans
 
 - also log execution time of commands (via precmd)
-- generalizing aw-watcher-bash for all terminals
 - check for performance issues
-- async calling
