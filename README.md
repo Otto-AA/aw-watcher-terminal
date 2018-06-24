@@ -31,7 +31,11 @@ Currently, you can pass it the flags `--testing` for using the test server and `
 # Send data to local ActivityWatch server
 if [[ -f ~/.bash-preexec.sh ]]; then
   source ~/.bash-preexec.sh
-  preexec() { aw-watcher-bash "$1"; }
+  preexec() {
+    # Call aw-watcher-bash in a background process to
+    # prevent blocking and in a subshell to prevent logging
+    (aw-watcher-bash "$1" &)
+  }
 fi
 ```
 
