@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# usage
+# aw-watcher-bash 'command with args' 'my_shell' 'my_shell_version'
+# aw-watcher-bash 'echo "Hello World"' 'bash' '4.4.19(1)-release'
 
 # escape_quotes
 # Prepends a backslash to every quote (") and every backslash followed by a quote (\") or backslash (\\)
@@ -37,12 +40,17 @@ escape_quotes() {
 
 # Set variables
 command="$(escape_quotes "$1")"
+shell="$(escape_quotes "$2")"
+shell_version="$(escape_quotes "$3")"
 path="$(escape_quotes "$PWD")"
-shell='bash'
-shell_version="$BASH_VERSION"
 pipe_path="/tmp/aw-watcher-terminal-pipe"
 
 message="--command \"$command\" --path \"$path\" --shell \"$shell\" --shell-version \"$shell_version\""
+
+# Following command fails due to https://stackoverflow.com/a/11968963/6548154
+# Using bash -c "..." likely breakes the escaping
+#timeout -k 5.0s 5.0s echo "$message" > "$pipe_path"
+
 
 # send message to pipe
 echo "$message" > "$pipe_path" &
