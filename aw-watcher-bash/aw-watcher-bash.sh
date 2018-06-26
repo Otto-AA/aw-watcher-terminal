@@ -43,7 +43,7 @@ command="$(escape_quotes "$1")"
 shell="$(escape_quotes "$2")"
 shell_version="$(escape_quotes "$3")"
 path="$(escape_quotes "$PWD")"
-pipe_path="/tmp/aw-watcher-terminal-pipe"
+pipe_path="${XDG_DATA_HOME:-$HOME/.local/share}/activitywatch/aw-watcher-terminal/aw-watcher-terminal-fifo"
 
 message="--command \"$command\" --path \"$path\" --shell \"$shell\" --shell-version \"$shell_version\""
 
