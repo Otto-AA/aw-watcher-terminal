@@ -1,9 +1,11 @@
 import argparse
+from aw_core.dirs import get_data_dir
 
 
 def load_config():
     default_config = {
-        "pipe_path": "/tmp/aw-watcher-terminal-pipe",
+        "pipe_path": "{}/{}".format(get_data_dir(("aw-watcher-terminal")),
+                                    "aw-watcher-terminal-fifo"),
         "client_id": "aw-watcher-terminal-test-client",
         "bucket_name": "aw-watcher-terminal",
         "event_type": "app.terminal.activity",
@@ -16,6 +18,7 @@ def load_config():
     config = {**default_config, **args}
 
     return config
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Process terminal activity.')
