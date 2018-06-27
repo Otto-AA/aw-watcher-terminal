@@ -48,8 +48,11 @@ def main():
 
     init_client()
     init_message_parser()
-    setup_named_pipe(config['pipe_path'])
-    on_named_pipe_message(config['pipe_path'], handle_pipe_message)
+
+    # Setup fifo and handler for preexec
+    fifo_preexec_path = "{}/{}".format(config["data_dir"], "fifo-preexec")
+    setup_named_pipe(fifo_preexec_path)
+    on_named_pipe_message(fifo_preexec_path, handle_pipe_message)
 
     logger.info("Listening for pipe messages...")
 

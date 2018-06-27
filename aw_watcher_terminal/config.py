@@ -1,13 +1,14 @@
 import argparse
 from aw_core.dirs import get_data_dir
 
+watcher_name = "aw-watcher-terminal"
+
 
 def load_config():
     default_config = {
-        "pipe_path": "{}/{}".format(get_data_dir(("aw-watcher-terminal")),
-                                    "aw-watcher-terminal-fifo"),
-        "client_id": "aw-watcher-terminal-test-client",
-        "bucket_name": "aw-watcher-terminal",
+        "data_dir": get_data_dir((watcher_name)),
+        "client_id": "{}-test-client".format(watcher_name),
+        "bucket_name": watcher_name,
         "event_type": "app.terminal.activity",
         "disabled": False,
         "verbose": False,
