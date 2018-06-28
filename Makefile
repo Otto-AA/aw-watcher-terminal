@@ -3,4 +3,5 @@ build:
 	python3 setup.py install
 
 	# Copy main file
-	cp ./aw_watcher_terminal/main.py ~/.local/bin/aw-watcher-terminal.py
+	cp ./aw_watcher_terminal/main.py ~/.local/bin/aw-watcher-terminal
+	chmod +x ~/.local/bin/aw-watcher-terminal
