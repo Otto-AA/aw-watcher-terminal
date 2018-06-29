@@ -47,10 +47,7 @@ def main():
     # futures = init_fifo_listeners()
     fifo_path = "{}/aw-watcher-terminal-fifo".format(shared_vars.config["data_dir"])
     setup_named_pipe(fifo_path)
-    futures = [on_named_pipe_message(fifo_path, message_handler.handle_fifo_message)]
-
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(asyncio.wait(futures))
+    on_named_pipe_message(fifo_path, message_handler.handle_fifo_message)
 
 
 def init_client():
@@ -93,7 +90,7 @@ def setup_named_pipe(pipe_path: str):
         os.mkfifo(pipe_path)
 
 
-async def on_named_pipe_message(pipe_path: str, callback: Callable[[str], Any]):
+def on_named_pipe_message(pipe_path: str, callback: Callable[[str], Any]):
     """Call callback everytime a new message is passed to the named pipe"""
     pipe_fd = os.open(pipe_path, os.O_RDONLY | os.O_NONBLOCK)
     with os.fdopen(pipe_fd) as pipe:
@@ -107,7 +104,7 @@ async def on_named_pipe_message(pipe_path: str, callback: Callable[[str], Any]):
                     shared_vars.logger.error(e)
                     traceback.print_exc()
 
-            await asyncio.sleep(1)
+            sleep(1)
 
 
 if __name__ == '__main__':

@@ -4,22 +4,15 @@
             store pid
 
         preexec:
-            set pid status processing
-            parse args
             send event
-            save eventid to pid
-            set pid status executing
+            save event to pid
 
         precmd:
-            if pid status == processing:
-                sleep (x) and repeat
-            if pid_status == executing:
-                pid_status = waiting_for_prompt
-                remove eventid from pid
-                get event by pid and eventid
+            update event:
                 set duration
                 set exit code
-                send event
+            send event
+            rmove old event from pid
 
         preclose:
             remove pid
@@ -82,15 +75,34 @@ terminal_processes_data = {}
 class TerminalProcessData:
     def __init__(self, pid: str):
         self.pid = pid
-
-        """
-            Status can be one of following:
-            - waiting_for_prompt
-            - processing (meaning, that this program is processing the pid)
-            - executing
-        """
-        self.status = "waiting_for_prompt"
         self.event = None
+
+
+def store_pid_if_not_existing(func):
+    """Add the pid to terminal_processes_data if not existing"""
+    def decorator(args, unknown_args):
+        pid = args.pid
+
+        if pid not in terminal_processes_data:
+            terminal_processes_data[pid] = TerminalProcessData(pid)
+
+        func(args, unknown_args)
+    return decorator
+
+
+def log_args(func_name: str, keys: list):
+    """Log the given args (first parameter) in debug mode"""
+    def decorator(func):
+        def decorated_function(args, unknown_args):
+            log_msg = func_name
+            for key in keys:
+                if key in vars(args):
+                    log_msg += "\n| {}={}".format(key, vars(args)[key])
+
+            shared_vars.logger.debug(log_msg)
+            func(args, unknown_args)
+        return decorated_function
+    return decorator
 
 
 def parse_args(parser: argparse.ArgumentParser) -> (argparse.Namespace, list):
@@ -104,22 +116,27 @@ def parse_args(parser: argparse.ArgumentParser) -> (argparse.Namespace, list):
     return decorator
 
 
-def split_fifo_message_into_cli_args(func):
+def split_str_into_cli_args(func):
     """Split a fifo message into command line arguments"""
-    def decorated_function(message: str):
+    def decorator(message: str):
+        cli_args = shlex.split(message)
+        return func(cli_args)
+    return decorator
+
+
+def for_line_in_str(func):
+    """Call the decorated function once per line of the string"""
+    def decorator(message):
         for line in message.split('\n'):
-            if not len(line):
-                continue
-            cli_args = shlex.split(line)
-            return func(cli_args)
-    return decorated_function
+            if len(line):
+                func(line)
+    return decorator
 
 
-@split_fifo_message_into_cli_args
+@for_line_in_str
+@split_str_into_cli_args
 @parse_args(parser_general)
 def handle_fifo_message(args, unknown_args):
-    shared_vars.logger.debug("Handling fifo message: {}".format(args))
-
     possible_events = {
         "preopen": preopen,
         "preexec": preexec,
@@ -135,54 +152,49 @@ def handle_fifo_message(args, unknown_args):
 
 
 @parse_args(parser_preopen)
+@log_args("preopen", ["pid"])
+@store_pid_if_not_existing
 def preopen(args, unknown_args):
     """Handle terminal creation"""
-    shared_vars.logger.debug("preopen | pid={}".format(args.pid))
-    terminal_processes_data[args.pid] = TerminalProcessData(args.pid)
+    pass
 
 
 @parse_args(parser_preexec)
+@log_args("preexec", ["pid", "command"])
+@store_pid_if_not_existing
 def preexec(args, unknown_args):
-    shared_vars.logger.debug("preexec | command={}".format(args.command))
     process = terminal_processes_data[args.pid]
-    process.status = "processing"
 
     # Send event
     process.event = insert_event(vars(args))
 
-    process.status = "executing"
-
 
 @parse_args(parser_precmd)
+@log_args("precmd", ["pid", "exit_code"])
+@store_pid_if_not_existing
 def precmd(args, unknown_args):
-    shared_vars.logger.debug("precmd | exit_code={}".format(args.exit_code))
     process = terminal_processes_data[args.pid]
 
-    if process.status != "executing":
-        shared_vars.logger.error("Not implemented yet")
+    # TODO: Check what happens if preexec and precmd order is swapped (e.g. because aw-watcher-bash-preexec is too slow)
+    if process.event is None:
+        return
 
     # TODO: Alter execution_time / duration of the event
-    print(process.event.data)
-    print(type(process.event.data))
     event_data = process.event.data
-    print(type(event_data))
-    print(event_data)
     event_data["exit_code"] = args.exit_code
-    insert_event(event_data)
+    insert_event(event_data, id=process.event.id)
 
 
 @parse_args(parser_preclose)
+@log_args("preclose", ["pid"])
 def preclose(args, unknown_args):
     shared_vars.logger.debug("preclose | pid={}".format(args.pid))
     terminal_processes_data.pop(args.pid)
 
 
-def insert_event(event_data: dict) -> Event:
+def insert_event(event_data: dict, **kwargs) -> Event:
     """Send event to the aw-server"""
-    shared_vars.logger.debug("Sending event")
-    shared_vars.logger.debug(event_data)
-    now = datetime.now(timezone.utc)
-    event = Event(timestamp=now, data=event_data)
+    event = Event(data=event_data, **kwargs)
     inserted_event = shared_vars.client.insert_event(shared_vars.bucket_id,
                                                      event)
 
