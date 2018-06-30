@@ -93,9 +93,12 @@ def parse_args(parser: argparse.ArgumentParser) -> EventHandlerDecorator:
     """Parse a list of arguments with the specified parser"""
     def decorator(func: EventHandler) -> Callable[[list], Any]:
         def decorated_function(args_raw: list) -> Any:
-            args, unknown_args = parser.parse_known_args(args_raw)
-
-            return func(args, unknown_args)
+            try:
+                args, unknown_args = parser.parse_known_args(args_raw)
+                return func(args, unknown_args)
+            except (argparse.ArgumentError, argparse.ArgumentTypeError,
+                    SystemExit) as e:
+                config.logger.error("Error while parsing args")
         return decorated_function
     return decorator
 
