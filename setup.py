@@ -11,6 +11,11 @@ setup(name='aw-watcher-terminal',
       author_email='lindrope@hotmail.com',
       url='https://github.com/Otto-AA/aw-watcher-terminal/',
       packages=['aw_watcher_terminal'],
+      entry_points={
+          'console_scripts': [
+              'aw-watcher-terminal = aw_watcher_terminal:main',
+          ],
+      },
       install_requires=[
           'aw-client(>=0.2.0)',
           'aw-core(>=0.4.1)'
