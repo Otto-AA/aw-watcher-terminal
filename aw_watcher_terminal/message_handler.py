@@ -21,10 +21,9 @@
 
 import argparse
 import shlex
-from datetime import datetime, timezone
 from time import sleep
 from aw_core.models import Event
-import shared_vars
+import config
 
 
 # Parser general
@@ -99,7 +98,7 @@ def log_args(func_name: str, keys: list):
                 if key in vars(args):
                     log_msg += "\n| {}={}".format(key, vars(args)[key])
 
-            shared_vars.logger.debug(log_msg)
+            config.logger.debug(log_msg)
             func(args, unknown_args)
         return decorated_function
     return decorator
@@ -145,7 +144,7 @@ def handle_fifo_message(args, unknown_args):
     }
 
     if args.event not in possible_events:
-        shared_vars.logger.error("Unknown event: {}".format(args.event))
+        config.logger.error("Unknown event: {}".format(args.event))
     else:
         # Call the event handler with the remaining args
         possible_events[args.event](unknown_args)
@@ -175,7 +174,8 @@ def preexec(args, unknown_args):
 def precmd(args, unknown_args):
     process = terminal_processes_data[args.pid]
 
-    # TODO: Check what happens if preexec and precmd order is swapped (e.g. because aw-watcher-bash-preexec is too slow)
+    # TODO: Check what happens if preexec and precmd order is swapped
+    # (e.g. because aw-watcher-bash-preexec is too slow)
     if process.event is None:
         return
 
@@ -188,18 +188,16 @@ def precmd(args, unknown_args):
 @parse_args(parser_preclose)
 @log_args("preclose", ["pid"])
 def preclose(args, unknown_args):
-    shared_vars.logger.debug("preclose | pid={}".format(args.pid))
     terminal_processes_data.pop(args.pid)
 
 
 def insert_event(event_data: dict, **kwargs) -> Event:
     """Send event to the aw-server"""
     event = Event(data=event_data, **kwargs)
-    inserted_event = shared_vars.client.insert_event(shared_vars.bucket_id,
-                                                     event)
+    inserted_event = config.client.insert_event(config.bucket_id, event)
 
     # The event returned from insert_event has been assigned an id by aw-server
     assert inserted_event.id is not None
-    shared_vars.logger.info("Successfully sent event")
+    config.logger.info("Successfully sent event")
 
     return inserted_event
