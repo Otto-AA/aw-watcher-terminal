@@ -9,7 +9,7 @@ import config
 import message_handler
 
 
-def main():
+def main() -> None:
     """Start aw-watcher-terminal"""
     """
     Usage:
@@ -33,7 +33,7 @@ def main():
     on_named_pipe_message(fifo_path, message_handler.handle_fifo_message)
 
 
-def init_client():
+def init_client() -> None:
     """Initialize the AW client and bucket"""
 
     # Create client in testing mode
@@ -48,7 +48,7 @@ def init_client():
     config.logger.info("Created bucket: {}".format(config.bucket_id))
 
 
-def setup_named_pipe(pipe_path: str):
+def setup_named_pipe(pipe_path: str) -> None:
     """Delete and create named pipe at specified path"""
     if os.path.exists(pipe_path):
         os.remove(pipe_path)
@@ -57,7 +57,8 @@ def setup_named_pipe(pipe_path: str):
         os.mkfifo(pipe_path)
 
 
-def on_named_pipe_message(pipe_path: str, callback: Callable[[str], Any]):
+def on_named_pipe_message(pipe_path: str,
+                          callback: Callable[[str], Any]) -> None:
     """Call callback everytime a new message is passed to the named pipe"""
     pipe_fd = os.open(pipe_path, os.O_RDONLY | os.O_NONBLOCK)
     with os.fdopen(pipe_fd) as pipe:

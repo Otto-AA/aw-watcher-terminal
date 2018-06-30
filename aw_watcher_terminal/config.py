@@ -4,7 +4,7 @@ from aw_core.log import setup_logging
 from aw_core.dirs import get_data_dir
 
 
-def load_config():
+def load_config() -> None:
     args = parse_args()
 
     global watcher_name
@@ -31,7 +31,7 @@ def load_config():
                   verbose=verbose, log_stderr=True, log_file=True)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Process terminal activity.')
     parser.add_argument("--testing", dest="testing", action="store_true")
     parser.add_argument("--verbose", dest="verbose", action="store_true")

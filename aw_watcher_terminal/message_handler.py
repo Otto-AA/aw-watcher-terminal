@@ -1,6 +1,7 @@
 import argparse
 import shlex
 from time import sleep
+from typing import Callable, Any
 from aw_core.models import Event
 import config
 
@@ -52,38 +53,47 @@ class TerminalProcessData:
         self.pid = pid
         self.event = None
 
+# Type for event handler functions
+EventHandler = Callable[[
+    argparse.Namespace,
+    list
+    ], Any
+]
+EventHandlerDecorator = Callable[[EventHandler], EventHandler]
 
-def store_pid_if_not_existing(func):
+
+def store_pid_if_not_existing(func: EventHandler) -> EventHandler:
     """Add the pid to terminal_processes_data if not existing"""
-    def decorator(args, unknown_args):
+    def decorator(args: argparse.Namespace, unknown_args: list) -> Any:
         pid = args.pid
 
         if pid not in terminal_processes_data:
             terminal_processes_data[pid] = TerminalProcessData(pid)
 
-        func(args, unknown_args)
+        return func(args, unknown_args)
     return decorator
 
 
-def log_args(func_name: str, keys: list):
+def log_args(func_name: str, keys: list) -> EventHandlerDecorator:
     """Log the given args (first parameter) in debug mode"""
-    def decorator(func):
-        def decorated_function(args, unknown_args):
+    def decorator(func: EventHandler) -> EventHandler:
+        def decorated_function(args: argparse.Namespace,
+                               unknown_args: list) -> Any:
             log_msg = func_name
             for key in keys:
                 if key in vars(args):
                     log_msg += "\n| {}={}".format(key, vars(args)[key])
 
             config.logger.debug(log_msg)
-            func(args, unknown_args)
+            return func(args, unknown_args)
         return decorated_function
     return decorator
 
 
-def parse_args(parser: argparse.ArgumentParser) -> (argparse.Namespace, list):
+def parse_args(parser: argparse.ArgumentParser) -> EventHandlerDecorator:
     """Parse a list of arguments with the specified parser"""
-    def decorator(func):
-        def decorated_function(args_raw):
+    def decorator(func: EventHandler) -> Callable[[list], Any]:
+        def decorated_function(args_raw: list) -> Any:
             args, unknown_args = parser.parse_known_args(args_raw)
 
             return func(args, unknown_args)
@@ -91,17 +101,18 @@ def parse_args(parser: argparse.ArgumentParser) -> (argparse.Namespace, list):
     return decorator
 
 
-def split_str_into_cli_args(func):
+def split_str_into_cli_args(func: Callable[
+                                    [list], Any]) -> Callable[[str], Any]:
     """Split a fifo message into command line arguments"""
-    def decorator(message: str):
+    def decorator(message: str) -> Any:
         cli_args = shlex.split(message)
         return func(cli_args)
     return decorator
 
 
-def for_line_in_str(func):
+def for_line_in_str(func: Callable[[str], Any]) -> Callable[[str], Any]:
     """Call the decorated function once per line of the string"""
-    def decorator(message):
+    def decorator(message: str) -> None:
         for line in message.split('\n'):
             if len(line):
                 func(line)
@@ -111,7 +122,7 @@ def for_line_in_str(func):
 @for_line_in_str
 @split_str_into_cli_args
 @parse_args(parser_general)
-def handle_fifo_message(args, unknown_args):
+def handle_fifo_message(args: argparse.Namespace, unknown_args: list) -> None:
     """Call the specified event handler with the remaining args"""
 
     # TODO: Check what happens if preexec and precmd order is swapped
@@ -133,7 +144,7 @@ def handle_fifo_message(args, unknown_args):
 @parse_args(parser_preopen)
 @log_args("preopen", ["pid"])
 @store_pid_if_not_existing
-def preopen(args, unknown_args):
+def preopen(args: argparse.Namespace, unknown_args: list) -> None:
     """Handle terminal creation"""
     # work done by decorators
     pass
@@ -142,7 +153,7 @@ def preopen(args, unknown_args):
 @parse_args(parser_preexec)
 @log_args("preexec", ["pid", "command"])
 @store_pid_if_not_existing
-def preexec(args, unknown_args):
+def preexec(args: argparse.Namespace, unknown_args: list) -> None:
     process = terminal_processes_data[args.pid]
     process.event = insert_event(vars(args))
 
@@ -150,7 +161,7 @@ def preexec(args, unknown_args):
 @parse_args(parser_precmd)
 @log_args("precmd", ["pid", "exit_code"])
 @store_pid_if_not_existing
-def precmd(args, unknown_args):
+def precmd(args: argparse.Namespace, unknown_args: list) -> None:
     process = terminal_processes_data[args.pid]
 
     if process.event is None:
@@ -166,7 +177,7 @@ def precmd(args, unknown_args):
 
 @parse_args(parser_preclose)
 @log_args("preclose", ["pid"])
-def preclose(args, unknown_args):
+def preclose(args: argparse.Namespace, unknown_args: list) -> None:
     terminal_processes_data.pop(args.pid)
 
 
