@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import traceback
-import sys
 import os
 from typing import Union, Callable, Any
 
@@ -47,22 +46,6 @@ def init_client():
                                       config.client.hostname)
     config.client.create_bucket(config.bucket_id, event_type=config.event_type)
     config.logger.info("Created bucket: {}".format(config.bucket_id))
-
-
-def init_fifo_listeners():
-    fifo_listeners = {
-        "preopen":  message_handler.preopen,
-        "preexec":  message_handler.preexec,
-        "precmd":   message_handler.precmd,
-        "preclose": message_handler.preclose
-    }
-    futures = []
-    for listener_name, listener in fifo_listeners.items():
-        fifo_path = "{}/fifo-{}".format(config.data_dir, listener_name)
-        setup_named_pipe(fifo_path)
-        futures.append(on_named_pipe_message(fifo_path, listener))
-
-    return futures
 
 
 def setup_named_pipe(pipe_path: str):
