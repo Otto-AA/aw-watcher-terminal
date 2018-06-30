@@ -79,12 +79,11 @@ def log_args(func_name: str, keys: list) -> EventHandlerDecorator:
     def decorator(func: EventHandler) -> EventHandler:
         def decorated_function(args: argparse.Namespace,
                                unknown_args: list) -> Any:
-            log_msg = func_name
+            config.logger.debug(func_name)
             for key in keys:
                 if key in vars(args):
-                    log_msg += "\n| {}={}".format(key, vars(args)[key])
+                    config.logger.debug("| {}={}".format(key, vars(args)[key]))
 
-            config.logger.debug(log_msg)
             return func(args, unknown_args)
         return decorated_function
     return decorator
@@ -103,7 +102,7 @@ def parse_args(parser: argparse.ArgumentParser) -> EventHandlerDecorator:
 
 def split_str_into_cli_args(func: Callable[
                                     [list], Any]) -> Callable[[str], Any]:
-    """Split a fifo message into command line arguments"""
+    """Split a string containing cli args into a list of cli args"""
     def decorator(message: str) -> Any:
         cli_args = shlex.split(message)
         return func(cli_args)
