@@ -8,39 +8,40 @@ import config
 
 # Event parsers
 #
-# general --event preexec
-parser_general = argparse.ArgumentParser(description='Parses the event')
-parser_general.add_argument('--event', dest='event', required=True,
-                            help='the trigger event (e.g. preexec)')
+# base --event preexec --pid 1234 --time 2018-07-01T09:13:15,215744806+02:00
+#      --path /home/me/
+parser_base = argparse.ArgumentParser(description='Parses the event',
+                                      add_help=False)
+parser_base.add_argument('--event', dest='event', required=True,
+                         help='the trigger event (e.g. preexec)')
+parser_base.add_argument('--pid', dest='pid', required=True,
+                         help='the process id of the current terminal')
+parser_base.add_argument('--time', dest='time', required=True,
+                         help='the time the event got triggered in iso-8601')
+parser_base.add_argument('--path', dest='path', required=True,
+                         help='the path of the shell')
 
 # preopen --pid 1234
-parser_preopen = argparse.ArgumentParser(description='Parses preopen messages')
-parser_preopen.add_argument('--pid', dest='pid', required=True,
-                            help='the process id of the current terminal')
+parser_preopen = argparse.ArgumentParser(parents=[parser_base])
+parser_preopen.description = 'Parses preopen events'
 
 # preopen --pid 1234 --command ls --path /my/path --shell bash
-parser_preexec = argparse.ArgumentParser(description='Parses preexec messages')
-parser_preexec.add_argument('--pid', dest='pid', required=True,
-                            help='the process id of the current terminal')
-parser_preexec.add_argument('--command', dest='command',
+parser_preexec = argparse.ArgumentParser(parents=[parser_base])
+parser_preexec.description = 'Parses preexec events'
+parser_preexec.add_argument('--command', dest='command', required=True,
                             help='the command entered by the user')
-parser_preexec.add_argument('--path', dest='path',
-                            help='the path of the shell')
-parser_preexec.add_argument('--shell', dest='shell',
+parser_preexec.add_argument('--shell', dest='shell', required=True,
                             help='the name of the shell used')
 
 # precmd --pid 1234 --exit-code 0
-parser_precmd = argparse.ArgumentParser(description='Parses precmd messages')
-parser_precmd.add_argument('--pid', dest='pid', required=True,
-                           help='the process id of the current terminal')
-parser_precmd.add_argument('--exit-code', dest='exit_code',
+parser_precmd = argparse.ArgumentParser(parents=[parser_base])
+parser_precmd.description = 'Parses precmd events'
+parser_precmd.add_argument('--exit-code', dest='exit_code', required=True,
                            help='the exit code of the last command')
 
 # preclose --pid 1234
-parser_preclose = argparse.ArgumentParser(description=('Parses preclose '
-                                          'messages'))
-parser_preclose.add_argument('--pid', dest='pid', required=True,
-                             help='the process id of the current terminal')
+parser_preclose = argparse.ArgumentParser(parents=[parser_base])
+parser_preclose.description = 'Parses preclose events'
 
 
 # Dict containing data related to process ids
@@ -64,13 +65,13 @@ EventHandlerDecorator = Callable[[EventHandler], EventHandler]
 
 def store_pid_if_not_existing(func: EventHandler) -> EventHandler:
     """Add the pid to terminal_processes_data if not existing"""
-    def decorator(args: argparse.Namespace, unknown_args: list) -> Any:
+    def decorator(args: argparse.Namespace, args_raw: list) -> Any:
         pid = args.pid
 
         if pid not in terminal_processes_data:
             terminal_processes_data[pid] = TerminalProcessData(pid)
 
-        return func(args, unknown_args)
+        return func(args, args_raw)
     return decorator
 
 
@@ -78,13 +79,13 @@ def log_args(func_name: str, keys: list) -> EventHandlerDecorator:
     """Log the given args (first parameter) in debug mode"""
     def decorator(func: EventHandler) -> EventHandler:
         def decorated_function(args: argparse.Namespace,
-                               unknown_args: list) -> Any:
+                               args_raw: list) -> Any:
             config.logger.debug(func_name)
             for key in keys:
                 if key in vars(args):
                     config.logger.debug("| {}={}".format(key, vars(args)[key]))
 
-            return func(args, unknown_args)
+            return func(args, args_raw)
         return decorated_function
     return decorator
 
@@ -95,7 +96,7 @@ def parse_args(parser: argparse.ArgumentParser) -> EventHandlerDecorator:
         def decorated_function(args_raw: list) -> Any:
             try:
                 args, unknown_args = parser.parse_known_args(args_raw)
-                return func(args, unknown_args)
+                return func(args, args_raw)
             except (argparse.ArgumentError, argparse.ArgumentTypeError,
                     SystemExit) as e:
                 config.logger.error("Error while parsing args")
@@ -123,8 +124,8 @@ def for_line_in_str(func: Callable[[str], Any]) -> Callable[[str], Any]:
 
 @for_line_in_str
 @split_str_into_cli_args
-@parse_args(parser_general)
-def handle_fifo_message(args: argparse.Namespace, unknown_args: list) -> None:
+@parse_args(parser_base)
+def handle_fifo_message(args: argparse.Namespace, args_raw: list) -> None:
     """Call the specified event handler with the remaining args"""
 
     # TODO: Check what happens if preexec and precmd order is swapped
@@ -140,30 +141,30 @@ def handle_fifo_message(args: argparse.Namespace, unknown_args: list) -> None:
     if args.event not in possible_events:
         config.logger.error("Unknown event: {}".format(args.event))
     else:
-        possible_events[args.event](unknown_args)
+        possible_events[args.event](args_raw)
 
 
 @parse_args(parser_preopen)
 @log_args("preopen", ["pid"])
 @store_pid_if_not_existing
-def preopen(args: argparse.Namespace, unknown_args: list) -> None:
+def preopen(args: argparse.Namespace, args_raw: list) -> None:
     """Handle terminal creation"""
     # work done by decorators
     pass
 
 
 @parse_args(parser_preexec)
-@log_args("preexec", ["pid", "command"])
+@log_args("preexec", ["pid", "command", "time"])
 @store_pid_if_not_existing
-def preexec(args: argparse.Namespace, unknown_args: list) -> None:
+def preexec(args: argparse.Namespace, args_raw: list) -> None:
     process = terminal_processes_data[args.pid]
     process.event = insert_event(vars(args))
 
 
 @parse_args(parser_precmd)
-@log_args("precmd", ["pid", "exit_code"])
+@log_args("precmd", ["pid", "exit_code", "time"])
 @store_pid_if_not_existing
-def precmd(args: argparse.Namespace, unknown_args: list) -> None:
+def precmd(args: argparse.Namespace, args_raw: list) -> None:
     process = terminal_processes_data[args.pid]
 
     if process.event is None:
@@ -179,7 +180,7 @@ def precmd(args: argparse.Namespace, unknown_args: list) -> None:
 
 @parse_args(parser_preclose)
 @log_args("preclose", ["pid"])
-def preclose(args: argparse.Namespace, unknown_args: list) -> None:
+def preclose(args: argparse.Namespace, args_raw: list) -> None:
     terminal_processes_data.pop(args.pid)
 
 
