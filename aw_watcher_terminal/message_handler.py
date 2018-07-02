@@ -1,58 +1,12 @@
 import argparse
 import shlex
+from datetime import datetime, timezone
+import iso8601
 from time import sleep
 from typing import Callable, Any
 from aw_core.models import Event
 from aw_watcher_terminal import config
 
-
-# Event parsers
-#
-# base --event preexec --pid 1234 --time 2018-07-01T09:13:15,215744806+02:00
-#      --path /home/me/
-parser_base = argparse.ArgumentParser(description='Parses the event',
-                                      add_help=False)
-parser_base.add_argument('--event', dest='event', required=True,
-                         help='the trigger event (e.g. preexec)')
-parser_base.add_argument('--pid', dest='pid', required=True,
-                         help='the process id of the current terminal')
-parser_base.add_argument('--time', dest='time', required=True,
-                         help='the time the event got triggered in iso-8601')
-parser_base.add_argument('--path', dest='path', required=True,
-                         help='the path of the shell')
-
-# preopen --pid 1234
-parser_preopen = argparse.ArgumentParser(parents=[parser_base])
-parser_preopen.description = 'Parses preopen events'
-
-# preopen --pid 1234 --command ls --path /my/path --shell bash
-parser_preexec = argparse.ArgumentParser(parents=[parser_base])
-parser_preexec.description = 'Parses preexec events'
-parser_preexec.add_argument('--command', dest='command', required=True,
-                            help='the command entered by the user')
-parser_preexec.add_argument('--shell', dest='shell', required=True,
-                            help='the name of the shell used')
-
-# precmd --pid 1234 --exit-code 0
-parser_precmd = argparse.ArgumentParser(parents=[parser_base])
-parser_precmd.description = 'Parses precmd events'
-parser_precmd.add_argument('--exit-code', dest='exit_code', required=True,
-                           help='the exit code of the last command')
-
-# preclose --pid 1234
-parser_preclose = argparse.ArgumentParser(parents=[parser_base])
-parser_preclose.description = 'Parses preclose events'
-
-
-# Dict containing data related to process ids
-# Keys are the process ids
-terminal_processes_data = {}
-
-
-class TerminalProcessData:
-    def __init__(self, pid: str):
-        self.pid = pid
-        self.event = None
 
 # Type for event handler functions
 EventHandler = Callable[[
@@ -122,15 +76,122 @@ def for_line_in_str(func: Callable[[str], Any]) -> Callable[[str], Any]:
     return decorator
 
 
+def parse_iso8601_str(timestamp_str: str) -> datetime:
+    """
+    Takes something representing a timestamp and
+    returns a timestamp in the representation we want.
+    """
+    timestamp = iso8601.parse_date(timestamp_str)
+    if not timestamp.tzinfo:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+    return timestamp
+
+
+# __events_in_queue contains all events indexed by the timestamp
+__events_in_queue = {}
+# __sorted_event_keys contains all keys sorted from oldest to newest
+__sorted_event_keys = []
+
+
+def _add_event_to_queue(event: Any, timestamp_iso8601: datetime) -> None:
+    assert timestamp_iso8601 not in __events_in_queue
+    __events_in_queue[timestamp_iso8601] = event
+
+    # TODO: Predetermine index and insert into that position to prevent other
+    # threads from using an unsorted list
+    # (in case they operate between following two commands)
+    __sorted_event_keys.append(timestamp_iso8601)
+    __sorted_event_keys.sort(reverse=True)
+
+
+def update_event_queue():
+    """
+    Handle events in the event_queue if they happened
+    n or more seconds ago, whereas n=time_buffer
+    """
+    if not len(__sorted_event_keys):
+        return
+
+    # Only handle events which happened some time ago
+    # to prevent processing them in a wrong order
+    # if the shell-watcher sent them in a wrong order (with delay)
+    time_buffer = 5
+
+    cur_time = datetime.now(timezone.utc)
+    oldest_event_time = __sorted_event_keys[0]
+    time_diff = cur_time - oldest_event_time
+
+    if time_diff.seconds > time_buffer:
+        timestamp_key = __sorted_event_keys.pop()
+        event = __events_in_queue.pop(timestamp_key)
+        handle_event(event)
+
+        # Call update_event_queue in case other events
+        # are also ready to be processed
+        update_event_queue()
+
+
+class TerminalProcessData:
+    def __init__(self, pid: str):
+        self.pid = pid
+        self.event = None
+
+# Event parsers
+#
+# base --event preexec --pid 1234 --time 2018-07-01T09:13:15,215744806+02:00
+#      --path /home/me/
+parser_base = argparse.ArgumentParser(description='Parses the event',
+                                      add_help=False)
+parser_base.add_argument('--event', dest='event', required=True,
+                         help='the trigger event (e.g. preexec)')
+parser_base.add_argument('--pid', dest='pid', required=True,
+                         help='the process id of the current terminal')
+parser_base.add_argument('--time', dest='time', required=True,
+                         type=parse_iso8601_str,
+                         help='the time the event got triggered in iso-8601')
+parser_base.add_argument('--path', dest='path', required=True,
+                         help='the path of the shell')
+
+# preopen --pid 1234
+parser_preopen = argparse.ArgumentParser(parents=[parser_base])
+parser_preopen.description = 'Parses preopen events'
+
+# preexec --pid 1234 --command ls --path /my/path --shell bash
+parser_preexec = argparse.ArgumentParser(parents=[parser_base])
+parser_preexec.description = 'Parses preexec events'
+parser_preexec.add_argument('--command', dest='command', required=True,
+                            help='the command entered by the user')
+parser_preexec.add_argument('--shell', dest='shell', required=True,
+                            help='the name of the shell used')
+
+# precmd --pid 1234 --exit-code 0
+parser_precmd = argparse.ArgumentParser(parents=[parser_base])
+parser_precmd.description = 'Parses precmd events'
+parser_precmd.add_argument('--exit-code', dest='exit_code', required=True,
+                           help='the exit code of the last command')
+
+# preclose --pid 1234
+parser_preclose = argparse.ArgumentParser(parents=[parser_base])
+parser_preclose.description = 'Parses preclose events'
+
+
+# Dict containing data related to process ids
+# Keys are the process ids
+terminal_processes_data = {}
+
+
 @for_line_in_str
 @split_str_into_cli_args
 @parse_args(parser_base)
+@log_args("handle_fifo_message", ["event"])
 def handle_fifo_message(args: argparse.Namespace, args_raw: list) -> None:
-    """Call the specified event handler with the remaining args"""
+    _add_event_to_queue(args_raw, args.time)
 
-    # TODO: Check what happens if preexec and precmd order is swapped
-    # (e.g. because aw-watcher-bash-preexec is too slow)
 
+@parse_args(parser_base)
+@log_args("handle_event", ["event"])
+def handle_event(args: argparse.Namespace, args_raw: list) -> None:
+    """Call the specified event"""
     possible_events = {
         "preopen": preopen,
         "preexec": preexec,
@@ -158,7 +219,13 @@ def preopen(args: argparse.Namespace, args_raw: list) -> None:
 @store_pid_if_not_existing
 def preexec(args: argparse.Namespace, args_raw: list) -> None:
     process = terminal_processes_data[args.pid]
-    process.event = insert_event(vars(args))
+    event_data = {
+        'pid': args.pid,
+        'command': args.command,
+        'path': args.path,
+        'shell': args.path
+    }
+    process.event = insert_event(event_data, timestamp=args.time)
 
 
 @parse_args(parser_precmd)
@@ -170,10 +237,19 @@ def precmd(args: argparse.Namespace, args_raw: list) -> None:
     if process.event is None:
         return
 
-    # TODO: Alter execution_time / duration of the event
     event_data = process.event.data
-    event_data["exit_code"] = args.exit_code
-    insert_event(event_data, id=process.event.id)
+
+    # Calculate time delta between preexec and precmd
+    timestamp = process.event.timestamp
+    cur_time = args.time
+    time_delta = cur_time - timestamp
+
+    event_data['exit_code'] = args.exit_code
+
+    insert_event(event_data,
+                 id=process.event.id,
+                 timestamp=timestamp,
+                 duration=time_delta)
 
     process.event = None
 

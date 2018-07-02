@@ -3,6 +3,7 @@ import traceback
 import os
 from typing import Union, Callable, Any
 
+from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 from aw_client import ActivityWatchClient
 from aw_watcher_terminal import config
@@ -30,7 +31,12 @@ def main() -> None:
     init_client()
     fifo_path = "{}/aw-watcher-terminal-fifo".format(config.data_dir)
     setup_named_pipe(fifo_path)
-    on_named_pipe_message(fifo_path, message_handler.handle_fifo_message)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        executor.submit(run_event_queue_listener)
+        executor.submit(on_named_pipe_message,
+                        fifo_path,
+                        message_handler.handle_fifo_message)
 
 
 def init_client() -> None:
@@ -46,6 +52,16 @@ def init_client() -> None:
                                       config.client.hostname)
     config.client.create_bucket(config.bucket_id, event_type=config.event_type)
     config.logger.info("Created bucket: {}".format(config.bucket_id))
+
+
+def run_event_queue_listener() -> None:
+    while True:
+        try:
+            message_handler.update_event_queue()
+        except Exception as e:
+            config.logger.error(e)
+            traceback.print_exc()
+        sleep(1)
 
 
 def setup_named_pipe(pipe_path: str) -> None:
