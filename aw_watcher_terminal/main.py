@@ -66,7 +66,8 @@ def init_client():
 
     # Create Bucket if not already existing
     bucket_id = "{}_{}".format(config['bucket_name'], client.hostname)
-    client.create_bucket(bucket_id, event_type=config['event_type'])
+    client.create_bucket(bucket_id, event_type=config['event_type'],
+                         queued=True)
     logger.info("Created bucket: {}".format(bucket_id))
 
 

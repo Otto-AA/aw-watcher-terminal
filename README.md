@@ -12,13 +12,16 @@ make build
 
 - [bash or zsh](https://github.com/Otto-AA/aw-watcher-bash)
 
-### Start aw-watcher-terminal.py
+### Start aw-watcher-terminal
 
 ```bash
-# If not already running, start the aw-server in a different terminal
-aw-server &
-# Start aw-watcher-terminal.py
-python3 ./.local/bin/aw-watcher-terminal.py
+# If the aw-server is not started yet (e.g. by aw-qt), then start it in a separate terminal
+aw-server
+```
+
+```bash
+# Start the terminal watcher
+aw-watcher-terminal
 ```
 
 Currently, you can pass it the flags `--testing` for using the test server and `--verbose` for more detailed logging
