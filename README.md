@@ -1,5 +1,7 @@
 # aw-watcher-terminal [WIP]
 
+[![Build Status](https://travis-ci.com/Otto-AA/aw-watcher-terminal.svg?branch=master)](https://travis-ci.com/Otto-AA/aw-watcher-terminal)
+
 ## Installation
 
 ### Run make build

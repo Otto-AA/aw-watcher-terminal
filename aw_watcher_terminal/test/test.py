@@ -1,9 +1,11 @@
 import unittest
+from aw_watcher_terminal import main, config, message_handler
+
+"""Outdated
 import argparse
 import logging
 from aw_watcher_terminal.main import init_message_parser, parse_pipe_message
 
-"""Outdated
 
 class TestPipeMessageParser(unittest.TestCase):
     # TODO: Update depending on specification
