@@ -1,2 +1,5 @@
 __pycache__
 .vscode
+aw_watcher_terminal.egg-info
+build
+dist

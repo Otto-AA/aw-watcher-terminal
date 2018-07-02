@@ -3,7 +3,7 @@ import shlex
 from time import sleep
 from typing import Callable, Any
 from aw_core.models import Event
-import config
+from aw_watcher_terminal import config
 
 
 # Event parsers

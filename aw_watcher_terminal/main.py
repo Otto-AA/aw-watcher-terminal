@@ -5,8 +5,8 @@ from typing import Union, Callable, Any
 
 from time import sleep
 from aw_client import ActivityWatchClient
-import config
-import message_handler
+from aw_watcher_terminal import config
+from aw_watcher_terminal import message_handler
 
 
 def main() -> None:
