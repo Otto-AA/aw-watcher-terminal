@@ -7,7 +7,6 @@ from aw_core.dirs import get_data_dir
 def load_config() -> None:
     args = parse_args()
 
-    global watcher_name
     global data_dir
     global client
     global client_id
@@ -17,17 +16,16 @@ def load_config() -> None:
     global verbose
     global testing
 
-    watcher_name = "aw-watcher-terminal"
-    data_dir = get_data_dir(watcher_name)
+    client_id = "aw-watcher-terminal"
+    data_dir = get_data_dir(client_id)
     client = None
-    client_id = "{}-test-client".format(watcher_name)
     bucket_id = None
     event_type = "app.terminal.activity"
     logger = logging.getLogger(__name__)
     verbose = args.verbose
     testing = args.testing
 
-    setup_logging(name=watcher_name, testing=testing,
+    setup_logging(name=client_id, testing=testing,
                   verbose=verbose, log_stderr=True, log_file=True)
 
 

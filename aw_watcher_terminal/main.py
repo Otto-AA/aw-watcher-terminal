@@ -42,7 +42,7 @@ def init_client() -> None:
     config.logger.info("Initialized AW Client")
 
     # Create Bucket if not already existing
-    config.bucket_id = "{}_{}".format(config.watcher_name,
+    config.bucket_id = "{}_{}".format(config.client_id,
                                       config.client.hostname)
     config.client.create_bucket(config.bucket_id, event_type=config.event_type)
     config.logger.info("Created bucket: {}".format(config.bucket_id))
