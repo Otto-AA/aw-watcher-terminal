@@ -16,8 +16,9 @@ def main() -> None:
     Usage:
     To pass events to the terminal, write the message to the named pipe
     (e.g. echo "$my_message" > "$pipe_path").
-    The message arguments which are needed are specified in the init
-    message_parser function.
+    The message arguments which are needed for the individual events are
+    specified in the parsers (base parser + event spefici parser) in
+    message_handler.py.
     Messages need to be properly escaped. You gonna need to add a backslash
     in front of every
     double quote (") and every backslash preceeding a double quote (\")
@@ -32,8 +33,9 @@ def main() -> None:
     fifo_path = "{}/aw-watcher-terminal-fifo".format(config.data_dir)
     setup_named_pipe(fifo_path)
 
+    # Start fifo listener and event_queue updater concurrently
     with ThreadPoolExecutor(max_workers=2) as executor:
-        executor.submit(run_event_queue_listener)
+        executor.submit(run_event_queue_updater)
         executor.submit(on_named_pipe_message,
                         fifo_path,
                         message_handler.handle_fifo_message)
@@ -42,7 +44,7 @@ def main() -> None:
 def init_client() -> None:
     """Initialize the AW client and bucket"""
 
-    # Create client in testing mode
+    # Create client
     config.client = ActivityWatchClient(config.client_id,
                                         testing=config.testing)
     config.logger.info("Initialized AW Client")
@@ -56,7 +58,8 @@ def init_client() -> None:
     config.logger.info("Created bucket: {}".format(config.bucket_id))
 
 
-def run_event_queue_listener() -> None:
+def run_event_queue_updater() -> None:
+    """Periodically update the event_queue from the message_handler"""
     while True:
         try:
             message_handler.update_event_queue()
@@ -77,7 +80,10 @@ def setup_named_pipe(pipe_path: str) -> None:
 
 def on_named_pipe_message(pipe_path: str,
                           callback: Callable[[str], Any]) -> None:
-    """Call callback everytime a new message is passed to the named pipe"""
+    """
+    Periodically read pipe for new messages
+    and call callback if one was found
+    """
     pipe_fd = os.open(pipe_path, os.O_RDONLY | os.O_NONBLOCK)
     with os.fdopen(pipe_fd) as pipe:
         config.logger.info("Listening to pipe: {}".format(pipe_path))

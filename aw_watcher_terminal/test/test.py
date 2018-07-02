@@ -3,6 +3,7 @@ import argparse
 import logging
 from aw_watcher_terminal.main import init_message_parser, parse_pipe_message
 
+"""Outdated
 
 class TestPipeMessageParser(unittest.TestCase):
     # TODO: Update depending on specification
@@ -36,6 +37,7 @@ class TestPipeMessageParser(unittest.TestCase):
         self.assertEqual('/home/', parsed.path)
         self.assertEqual('bash', parsed.shell)
         self.assertEqual('1.2.3', parsed.shell_version)
+"""
 
 if __name__ == '__main__':
     unittest.main()

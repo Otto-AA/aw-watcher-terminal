@@ -30,7 +30,7 @@ def store_pid_if_not_existing(func: EventHandler) -> EventHandler:
 
 
 def log_args(func_name: str, keys: list) -> EventHandlerDecorator:
-    """Log the given args (first parameter) in debug mode"""
+    """Log the parsed args in debug mode"""
     def decorator(func: EventHandler) -> EventHandler:
         def decorated_function(args: argparse.Namespace,
                                args_raw: list) -> Any:
@@ -77,10 +77,7 @@ def for_line_in_str(func: Callable[[str], Any]) -> Callable[[str], Any]:
 
 
 def parse_iso8601_str(timestamp_str: str) -> datetime:
-    """
-    Takes something representing a timestamp and
-    returns a timestamp in the representation we want.
-    """
+    """Convert a iso8601 string into a datetime object"""
     timestamp = iso8601.parse_date(timestamp_str)
     if not timestamp.tzinfo:
         timestamp = timestamp.replace(tzinfo=timezone.utc)
@@ -89,11 +86,13 @@ def parse_iso8601_str(timestamp_str: str) -> datetime:
 
 # __events_in_queue contains all events indexed by the timestamp
 __events_in_queue = {}
-# __sorted_event_keys contains all keys sorted from oldest to newest
+# __sorted_event_keys contains all timestamp keys
+# for __events_in_queue sorted from oldest to newest
 __sorted_event_keys = []
 
 
 def _add_event_to_queue(event: Any, timestamp_iso8601: datetime) -> None:
+    """Add an event to the event queue"""
     assert timestamp_iso8601 not in __events_in_queue
     __events_in_queue[timestamp_iso8601] = event
 
@@ -107,7 +106,7 @@ def _add_event_to_queue(event: Any, timestamp_iso8601: datetime) -> None:
 def update_event_queue():
     """
     Handle events in the event_queue if they happened
-    n or more seconds ago, whereas n=time_buffer
+    {time_buffer} or more seconds ago
     """
     if not len(__sorted_event_keys):
         return
@@ -132,6 +131,7 @@ def update_event_queue():
 
 
 class TerminalProcessData:
+    """Store data belonging to an opened terminal"""
     def __init__(self, pid: str):
         self.pid = pid
         self.event = None
@@ -175,8 +175,9 @@ parser_preclose = argparse.ArgumentParser(parents=[parser_base])
 parser_preclose.description = 'Parses preclose events'
 
 
-# Dict containing data related to process ids
+# Dict containing data related to opened terminals
 # Keys are the process ids
+# Values are TerminalProcessData instances
 terminal_processes_data = {}
 
 
@@ -210,7 +211,7 @@ def handle_event(args: argparse.Namespace, args_raw: list) -> None:
 @store_pid_if_not_existing
 def preopen(args: argparse.Namespace, args_raw: list) -> None:
     """Handle terminal creation"""
-    # work done by decorators
+    # Terminal process id stored by decorator
     pass
 
 
@@ -218,6 +219,7 @@ def preopen(args: argparse.Namespace, args_raw: list) -> None:
 @log_args("preexec", ["pid", "command", "time"])
 @store_pid_if_not_existing
 def preexec(args: argparse.Namespace, args_raw: list) -> None:
+    """Send event containing command execution data"""
     process = terminal_processes_data[args.pid]
     event_data = {
         'pid': args.pid,
@@ -225,13 +227,14 @@ def preexec(args: argparse.Namespace, args_raw: list) -> None:
         'path': args.path,
         'shell': args.path
     }
-    process.event = insert_event(event_data, timestamp=args.time)
+    process.event = insert_event(data=event_data, timestamp=args.time)
 
 
 @parse_args(parser_precmd)
 @log_args("precmd", ["pid", "exit_code", "time"])
 @store_pid_if_not_existing
 def precmd(args: argparse.Namespace, args_raw: list) -> None:
+    """Update the stored event with duration and exit_code"""
     process = terminal_processes_data[args.pid]
 
     if process.event is None:
@@ -246,7 +249,7 @@ def precmd(args: argparse.Namespace, args_raw: list) -> None:
 
     event_data['exit_code'] = args.exit_code
 
-    insert_event(event_data,
+    insert_event(data=event_data,
                  id=process.event.id,
                  timestamp=timestamp,
                  duration=time_delta)
@@ -257,16 +260,17 @@ def precmd(args: argparse.Namespace, args_raw: list) -> None:
 @parse_args(parser_preclose)
 @log_args("preclose", ["pid"])
 def preclose(args: argparse.Namespace, args_raw: list) -> None:
+    """Remove pid and related data from terminal_processes_data"""
     terminal_processes_data.pop(args.pid)
 
 
-def insert_event(event_data: dict, **kwargs) -> Event:
+def insert_event(*args, **kwargs) -> Event:
     """Send event to the aw-server"""
-    event = Event(data=event_data, **kwargs)
+    event = Event(*args, **kwargs)
     inserted_event = config.client.insert_event(config.bucket_id, event)
 
     # The event returned from insert_event has been assigned an id by aw-server
     assert inserted_event.id is not None
-    config.logger.info("Successfully sent event")
+    config.logger.debug("Successfully sent event")
 
     return inserted_event

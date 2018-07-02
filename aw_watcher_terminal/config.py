@@ -5,6 +5,7 @@ from aw_core.dirs import get_data_dir
 
 
 def load_config() -> None:
+    """Load the configurations"""
     args = parse_args()
 
     global data_dir
@@ -30,7 +31,7 @@ def load_config() -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='Process terminal activity.')
+    parser = argparse.ArgumentParser(description='Terminal activity watcher.')
     parser.add_argument("--testing", dest="testing", action="store_true")
     parser.add_argument("--verbose", dest="verbose", action="store_true")
     return parser.parse_args()
