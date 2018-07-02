@@ -33,7 +33,3 @@ _Note: If you want it to autostart with aw-qt, take a look at this [this issue](
 ```bash
 echo "Finished installation"
 ```
-
-## Future plans
-
-- check for performance issues
