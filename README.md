@@ -26,6 +26,8 @@ aw-watcher-terminal
 
 Currently, you can pass it the flags `--testing` for using the test server and `--verbose` for more detailed logging
 
+_Note: If you want it to autostart with aw-qt, take a look at this [this issue](https://github.com/ActivityWatch/aw-qt/issues/35)_
+
 ### Open a new terminal and start executing commands
 
 ```bash
@@ -34,5 +36,4 @@ echo "Finished installation"
 
 ## Future plans
 
-- also log execution time of commands (via precmd)
 - check for performance issues
