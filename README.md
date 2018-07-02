@@ -34,5 +34,4 @@ echo "Finished installation"
 
 ## Future plans
 
-- also log execution time of commands (via precmd)
 - check for performance issues
