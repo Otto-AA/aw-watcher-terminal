@@ -225,7 +225,7 @@ def preexec(args: argparse.Namespace, args_raw: list) -> None:
         'pid': args.pid,
         'command': args.command,
         'path': args.path,
-        'shell': args.path
+        'shell': args.shell
     }
     process.event = insert_event(data=event_data, timestamp=args.time)
 
