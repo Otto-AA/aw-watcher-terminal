@@ -297,11 +297,13 @@ def insert_event(*args, **kwargs) -> Event:
 
 @parse_args(parser_heartbeat)
 @log_args("heartbeat", ["pid"])
+@store_pid_if_not_existing
 def heartbeat(args: argparse.Namespace, args_raw: list) -> None:
     """Send heartbeat to activity bucket"""
+    process = terminal_processes_data[args.pid]
 
     event_data = {
-        'pid': args.pid,
+        'session_id': process.unique_id,
         'shell': args.shell,
         'path': args.path
     }
@@ -314,8 +316,8 @@ def heartbeat(args: argparse.Namespace, args_raw: list) -> None:
         config.bucket_ids['activity-watcher'],
         event,
         pulsetime=config.pulsetime,
-        queued=False
+        queued=True
     )
 
-    assert inserted_heartbeat.id is not None
-    config.logger.debug("Successfully sent heartbeat")
+    if inserted_heartbeat and inserted_heartbeat.id:
+        config.logger.debug("Successfully sent heartbeat")
