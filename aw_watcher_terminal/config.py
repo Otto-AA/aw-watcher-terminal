@@ -11,8 +11,9 @@ def load_config() -> None:
     global data_dir
     global client
     global client_id
-    global bucket_id
-    global event_type
+    global bucket_ids
+    global event_types
+    global pulsetime
     global logger
     global verbose
     global testing
@@ -20,8 +21,15 @@ def load_config() -> None:
     client_id = "aw-watcher-terminal"
     data_dir = get_data_dir(client_id)
     client = None
-    bucket_id = None
-    event_type = "app.terminal.activity"
+    bucket_ids = {
+        'command-watcher': None,
+        'activity-watcher': None
+    }
+    event_types = {
+        'command-watcher': "app.terminal.command",
+        'activity-watcher': "app.terminal.activity"
+    }
+    pulsetime = 10
     logger = logging.getLogger(__name__)
     verbose = args.verbose
     testing = args.testing

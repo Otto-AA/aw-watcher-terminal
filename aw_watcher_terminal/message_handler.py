@@ -139,7 +139,7 @@ class TerminalProcessData:
 # Event parsers
 #
 # base --event preexec --pid 1234 --time 2018-07-01T09:13:15,215744806+02:00
-#      --path /home/me/
+#      --path /home/me/ [--send-heartbeat]
 parser_base = argparse.ArgumentParser(description='Parses the event',
                                       add_help=False)
 parser_base.add_argument('--event', dest='event', required=True,
@@ -151,6 +151,10 @@ parser_base.add_argument('--time', dest='time', required=True,
                          help='the time the event got triggered in iso-8601')
 parser_base.add_argument('--path', dest='path', required=True,
                          help='the path of the shell')
+parser_base.add_argument('--send-heartbeat', dest='send_heartbeat',
+                         action='store_true',
+                         help=('pass this flag if you want to track '
+                               'the time you use terminals'))
 
 # preopen --pid 1234
 parser_preopen = argparse.ArgumentParser(parents=[parser_base])
@@ -173,6 +177,12 @@ parser_precmd.add_argument('--exit-code', dest='exit_code', required=True,
 # preclose --pid 1234
 parser_preclose = argparse.ArgumentParser(parents=[parser_base])
 parser_preclose.description = 'Parses preclose events'
+
+# heartbeat
+parser_heartbeat = argparse.ArgumentParser(parents=[parser_base])
+parser_heartbeat.description = 'Parses activity heartbeats'
+parser_heartbeat.add_argument('--shell', dest='shell', required=True,
+                              help='the name of the shell used')
 
 
 # Dict containing data related to opened terminals
@@ -204,6 +214,10 @@ def handle_event(args: argparse.Namespace, args_raw: list) -> None:
         config.logger.error("Unknown event: {}".format(args.event))
     else:
         possible_events[args.event](args_raw)
+
+    # Send heartbeat if the option is activated
+    if args.send_heartbeat:
+        heartbeat(args_raw)
 
 
 @parse_args(parser_preopen)
@@ -267,10 +281,38 @@ def preclose(args: argparse.Namespace, args_raw: list) -> None:
 def insert_event(*args, **kwargs) -> Event:
     """Send event to the aw-server"""
     event = Event(*args, **kwargs)
-    inserted_event = config.client.insert_event(config.bucket_id, event)
+    inserted_event = config.client.insert_event(
+        config.bucket_ids['command-watcher'],
+        event)
 
     # The event returned from insert_event has been assigned an id by aw-server
     assert inserted_event.id is not None
     config.logger.debug("Successfully sent event")
 
     return inserted_event
+
+
+@parse_args(parser_heartbeat)
+@log_args("heartbeat", ["pid"])
+def heartbeat(args: argparse.Namespace, args_raw: list) -> None:
+    """Send heartbeat to activity bucket"""
+
+    event_data = {
+        'pid': args.pid,
+        'shell': args.shell,
+        'path': args.path
+    }
+    event = Event(
+        data=event_data,
+        timestamp=args.time
+    )
+
+    inserted_heartbeat = config.client.heartbeat(
+        config.bucket_ids['activity-watcher'],
+        event,
+        pulsetime=config.pulsetime,
+        queued=False
+    )
+
+    assert inserted_heartbeat.id is not None
+    config.logger.debug("Successfully sent heartbeat")

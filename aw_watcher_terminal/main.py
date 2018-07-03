@@ -51,13 +51,24 @@ def init_client() -> None:
 
     config.logger.info("Initialized AW Client")
 
-    # Create Bucket if not already existing
-    config.bucket_id = "{}_{}".format(config.client_id,
-                                      config.client.hostname)
-    config.client.create_bucket(config.bucket_id,
-                                event_type=config.event_type,
-                                queued=True)
-    config.logger.info("Created bucket: {}".format(config.bucket_id))
+    # Create Buckets if not already existing
+    config.bucket_ids['command-watcher'] = "{}-{}_{}".format(
+        config.client_id,
+        'commands',
+        config.client.hostname
+    )
+    config.bucket_ids['activity-watcher'] = "{}-{}_{}".format(
+        config.client_id,
+        'activity',
+        config.client.hostname
+    )
+
+    for key, bucket_id in config.bucket_ids.items():
+        event_type = config.event_types[key]
+        config.client.create_bucket(bucket_id,
+                                    event_type=event_type,
+                                    queued=True)
+        config.logger.info("Created bucket: {}".format(bucket_id))
 
 
 def run_event_queue_updater() -> None:
