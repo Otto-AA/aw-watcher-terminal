@@ -2,6 +2,7 @@ import argparse
 import shlex
 from datetime import datetime, timezone
 import iso8601
+import uuid
 from time import sleep
 from typing import Callable, Any
 from aw_core.models import Event
@@ -134,6 +135,7 @@ class TerminalProcessData:
     """Store data belonging to an opened terminal"""
     def __init__(self, pid: str):
         self.pid = pid
+        self.unique_id = str(uuid.uuid1())
         self.event = None
 
 # Event parsers
@@ -236,10 +238,11 @@ def preexec(args: argparse.Namespace, args_raw: list) -> None:
     """Send event containing command execution data"""
     process = terminal_processes_data[args.pid]
     event_data = {
-        'pid': args.pid,
         'command': args.command,
         'path': args.path,
-        'shell': args.shell
+        'shell': args.shell,
+        'exit_code': 'unknown',
+        'session_id': process.unique_id
     }
     process.event = insert_event(data=event_data, timestamp=args.time)
 
