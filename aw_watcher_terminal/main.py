@@ -47,6 +47,8 @@ def init_client() -> None:
     # Create client
     config.client = ActivityWatchClient(config.client_id,
                                         testing=config.testing)
+    config.client.connect()
+
     config.logger.info("Initialized AW Client")
 
     # Create Bucket if not already existing
