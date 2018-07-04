@@ -135,7 +135,7 @@ Optional flags:
 #### preexec message
 
 - `--event preexec`
-- `--commmand`  _The command which got executed_
+- `--command`  _The command which got executed_
 
 #### precmd message
 
