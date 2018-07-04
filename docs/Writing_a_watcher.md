@@ -34,39 +34,48 @@ This tutorial will guide you through the steps to create a shell specific watche
 
 ## Quickstart
 
-This is some pseudo code to demonstrate how your shell watcher could look like. If you want a real example, you can take a look at [aw-watcher-bash](https://github.com/otto-aa/aw-watcher-bash).
+Writing a shell specific watcher is rather easy. The hardest part of it is to actually get the data you want, sending the event is equivalent to writing to a named pipe (which is pretty similar to writing to a file).
+
+Here is some pseudo code which should cover the generic structure. I recommend to start based of this and if some questions remain, either look at a real example ([aw-watcher-bash](https://github.com/otto-aa/aw-watcher-bash)), sneak peek into the documentation below, or [file an issue](/issues).
 
 ```javascript
 // This function handles event calls
-function send_aw_watcher_bash_event(args) {
+function send_aw_watcher_event(event_args) {
+    // Base args are required for all events
     var base_args = [
         '--pid "1234"',
         '--shell "nutshell"',
-        '--time "2006-08-14T02:34:56-06:00"',
-        '--path "/home/me/my_dir/"'
+        '--time "2006-08-14T02:34:56-06:00"', // time in iso8601 format
+        '--path "/home/me/my_dir/"',
+        '--send-heartbeat' // (Optional) If this flag is passed, the watcher will keep track of the activity in a separate bucket
     ]
 
-    var message = str(base_args + args)
+    var message = str(base_args + event_args)
     message = escape_double_quotes_and_backslashes(message)
+    // message could look like:
+    // "--pid \"1234\" --shell \"bash\" --path \"/home/me/Documents\" --time \"2006-08-14T02:34:56-06:00\" --event \"preexec\" --command \"echo \\\"Hello world\\\"\""
+
+    // HOME/.local/share represents the data dir. If you have a more cross-platform solution, then use it.
     fifo_path = "HOME/.local/share/activitywatch/aw-watcher-terminal/aw-watcher-terminal-fifo"
 
+    // Writing to a named pipe can stall the process, so make at least this operation asynchronous
     asynchronously write(message).to(fifo_path)
 }
 
 // You will need to somehow set up following hooks in your shell. See "Listening for events" if you have no idea how this could work.
 preopen() {
-    send_aw_watcher_bash_event('--event "preopen"')
+    send_aw_watcher_event('--event "preopen"')
 }
 preexec() {
     command = get_command_which_will_be_executed()
-    send_aw_watcher_bash_event('--event "preexec"', `--command "${command}"`)
+    send_aw_watcher_event('--event "preexec"', `--command "${command}"`)
 }
 precmd() {
     exit_code = get_exit_code_from_last_command()
-    send_aw_watcher_bash_event('--event "precmd"', `--exit-code "${exit_code}"`)
+    send_aw_watcher_event('--event "precmd"', `--exit-code "${exit_code}"`)
 }
 preclose() {
-    send_aw_watcher_bash_event('--event "preclose"')
+    send_aw_watcher_event('--event "preclose"')
 }
 ```
 
