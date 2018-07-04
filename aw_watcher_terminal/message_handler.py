@@ -157,6 +157,8 @@ parser_base.add_argument('--send-heartbeat', dest='send_heartbeat',
                          action='store_true',
                          help=('pass this flag if you want to track '
                                'the time you use terminals'))
+parser_base.add_argument('--shell', dest='shell', required=True,
+                         help='the name of the shell used')
 
 # preopen --pid 1234
 parser_preopen = argparse.ArgumentParser(parents=[parser_base])
@@ -167,8 +169,6 @@ parser_preexec = argparse.ArgumentParser(parents=[parser_base])
 parser_preexec.description = 'Parses preexec events'
 parser_preexec.add_argument('--command', dest='command', required=True,
                             help='the command entered by the user')
-parser_preexec.add_argument('--shell', dest='shell', required=True,
-                            help='the name of the shell used')
 
 # precmd --pid 1234 --exit-code 0
 parser_precmd = argparse.ArgumentParser(parents=[parser_base])
@@ -183,8 +183,6 @@ parser_preclose.description = 'Parses preclose events'
 # heartbeat
 parser_heartbeat = argparse.ArgumentParser(parents=[parser_base])
 parser_heartbeat.description = 'Parses activity heartbeats'
-parser_heartbeat.add_argument('--shell', dest='shell', required=True,
-                              help='the name of the shell used')
 
 
 # Dict containing data related to opened terminals
