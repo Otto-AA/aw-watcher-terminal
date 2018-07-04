@@ -43,7 +43,7 @@ function send_aw_watcher_bash_event(args) {
         '--pid "1234"',
         '--shell "nutshell"',
         '--time "2006-08-14T02:34:56-06:00"',
-        '--path "/home/me/my_dir/"
+        '--path "/home/me/my_dir/"'
     ]
 
     var message = str(base_args + args)
