@@ -1,12 +1,49 @@
 # aw-watcher-terminal [WIP]
 
+Extension to [ActivityWatch](https://github.com/activitywatch/activitywatch) which allows you to track the commands you've written and time spent in terminals.
+
 [![Build Status](https://travis-ci.com/Otto-AA/aw-watcher-terminal.svg?branch=master)](https://travis-ci.com/Otto-AA/aw-watcher-terminal)
+
+---------------
+
+## Features
+
+### Tracking commands and metadata
+
+Automatically track following data for every command execution:
+
+- the executed command
+- path of the shell
+- shell name
+- exit code of the command
+- execution time
+- session id (automatically created)
+
+### Tracking activity time
+
+For simpler analysis on how long you've worked in the terminal (and in which directories and paths) this data is stored in a separate bucket. Following data is tracked there:
+
+- shell name
+- path
+- session id
+
+### Restoring specific terminal sessions (Not implemented yet)
+
+_With the data stored it is theoretically possible to write all commands executed in a specific terminal session into a file. This feature is not yet implemented._
+
+---------------
 
 ## Installation
 
-### Install
+### Prerequisites
+
+You need to have [ActivityWatch](https://github.com/activitywatch/activitywatch) installed.
+
+### Install aw-watcher-terminal
 
 ```bash
+git clone https://github.com/otto-aa/aw-watcher-terminal.git
+cd aw-watcher-terminal
 make build
 ```
 
