@@ -2,8 +2,7 @@
 import traceback
 import os
 from typing import Union, Callable, Any
-
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_EXCEPTION
 from time import sleep
 from aw_client import ActivityWatchClient
 from aw_watcher_terminal import config
@@ -17,11 +16,11 @@ def main() -> None:
     To pass events to the terminal, write the message to the named pipe
     (e.g. echo "$my_message" > "$pipe_path").
     The message arguments which are needed for the individual events are
-    specified in the parsers (base parser + event spefici parser) in
+    specified in the parsers (base parser + event specific parser) in
     message_handler.py.
     Messages need to be properly escaped. You gonna need to add a backslash
     in front of every
-    double quote (") and every backslash preceeding a double quote (\")
+    double quote (") and every backslash preceding a double quote (\")
     For instance, the command 'echo "Hello \"World\""' should be escaped
     like '--command echo \"Hello \\\"World\\\"\"'
     """
@@ -35,10 +34,28 @@ def main() -> None:
 
     # Start fifo listener and event_queue updater concurrently
     with ThreadPoolExecutor(max_workers=2) as executor:
-        executor.submit(run_event_queue_updater)
-        executor.submit(on_named_pipe_message,
-                        fifo_path,
-                        message_handler.handle_fifo_message)
+        futures = []
+        futures.append(executor.submit(run_event_queue_updater))
+        futures.append(executor.submit(on_named_pipe_message,
+                       fifo_path,
+                       message_handler.handle_fifo_message))
+
+        # Wait until a future raises an exception
+        try:
+            wait(futures, return_when=FIRST_EXCEPTION)
+        except (Exception, KeyboardInterrupt, SystemExit) as e:
+            config.logger.error('An exception was raised in a future')
+            config.logger.error(e)
+        finally:
+            config.logger.info('Setting config.is_running to False')
+            config.is_running = False
+
+        # Wait for all futures to properly exit
+        wait(futures)
+
+    config.logger.info('Doing cleanup')
+    if config.client:
+        config.client.disconnect()
 
 
 def init_client() -> None:
@@ -73,7 +90,7 @@ def init_client() -> None:
 
 def run_event_queue_updater() -> None:
     """Periodically update the event_queue from the message_handler"""
-    while True:
+    while config.is_running:
         try:
             message_handler.update_event_queue()
         except Exception as e:
@@ -100,7 +117,7 @@ def on_named_pipe_message(pipe_path: str,
     pipe_fd = os.open(pipe_path, os.O_RDONLY | os.O_NONBLOCK)
     with os.fdopen(pipe_fd) as pipe:
         config.logger.info("Listening to pipe: {}".format(pipe_path))
-        while True:
+        while config.is_running:
             message = pipe.read()
             if message:
                 try:

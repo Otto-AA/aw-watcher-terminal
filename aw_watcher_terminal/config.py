@@ -17,6 +17,7 @@ def load_config() -> None:
     global logger
     global verbose
     global testing
+    global is_running
 
     client_id = "aw-watcher-terminal"
     data_dir = get_data_dir(client_id)
@@ -33,6 +34,7 @@ def load_config() -> None:
     logger = logging.getLogger(__name__)
     verbose = args.verbose
     testing = args.testing
+    is_running = True
 
     setup_logging(name=client_id, testing=testing,
                   verbose=verbose, log_stderr=True, log_file=True)
