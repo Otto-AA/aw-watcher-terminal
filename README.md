@@ -4,13 +4,15 @@
 
 ## Installation
 
-### Run make build
+### Install
 
 ```bash
 make build
 ```
 
-### Install the approbiate watcher for your shell
+### Install the appropriate watcher for your shell
+
+_If your preferred shell is missing, feel free to [file an issue](/issues) or create the shell watcher on your own ([see docs](/docs))._
 
 - [bash or zsh](https://github.com/Otto-AA/aw-watcher-bash)
 
