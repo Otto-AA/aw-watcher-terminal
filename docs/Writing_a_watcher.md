@@ -181,7 +181,7 @@ Some shells have in-builds for this (e.g. zsh with `preexec` and `precmd`), othe
 
 #### preclose hook
 
-In some shells you can do this with the `trap` command, others probably have an in-built command for that. If none of these is available you _could_ try to check if this specific process ended in an interval or set up a listener (But this seems a bit overkill.
+In some shells you can do this with the `trap` command, others probably have an in-built command for that. If none of these is available you _could_ try to check if this specific process ended in an interval or set up a listener (But this seems a bit overkill).
 
 ## Tips
 
