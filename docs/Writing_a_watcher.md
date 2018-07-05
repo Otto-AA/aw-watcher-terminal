@@ -36,7 +36,7 @@ This tutorial will guide you through the steps to create a shell specific watche
 
 Writing a shell specific watcher is rather easy. The hardest part of it is to actually get the data you want, sending the event is equivalent to writing to a named pipe (which is pretty similar to writing to a file).
 
-Here is some pseudo code which should cover the generic structure. I recommend to start based of this and if some questions remain, either look at a real example ([aw-watcher-bash](https://github.com/otto-aa/aw-watcher-bash)), sneak peek into the documentation below, or [file an issue](/issues).
+Here is some pseudo code which should cover the generic structure. I recommend to start based of this and if some questions remain, either look at a real example ([aw-watcher-bash](https://github.com/otto-aa/aw-watcher-bash)), sneak peek into the documentation below, or [file an issue][issues].
 
 ```javascript
 // This function handles event calls
@@ -167,7 +167,7 @@ echo "$preopen_msg" > "$fifo_path"
 
 ## Listening for events
 
-This strongly depends on the shell you use, so you will have to do some research for that on your own (or ask for help in the [issues](/issues/)).
+This strongly depends on the shell you use, so you will have to do some research for that on your own (or ask for help in the [issues][issues]).
 
 ### Setting up the hooks
 
@@ -205,3 +205,5 @@ aw-watcher-terminal-preclose() {
 ### Use aw-watcher-bash if supported
 
 If bash is installed on the system you could use aw-watcher-bash.sh as an event handler to simplify things. You can find it [here](https://github.com/otto-aa/aw-watcher-bash).
+
+[issues]: https://github.com/otto-aa/aw-watcher-terminal/issues

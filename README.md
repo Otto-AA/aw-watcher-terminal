@@ -49,7 +49,7 @@ make build
 
 ### Install the appropriate watcher for your shell
 
-_If your preferred shell is missing, feel free to [file an issue](/issues) or create the shell watcher on your own ([see docs](/docs))._
+_If your preferred shell is missing, feel free to [file an issue][issues] or create the shell watcher on your own ([see docs](/docs))._
 
 - [bash or zsh](https://github.com/Otto-AA/aw-watcher-bash)
 
@@ -72,5 +72,8 @@ _Note: If you want it to autostart with aw-qt, take a look at this [this issue](
 ### Open a new terminal and start executing commands
 
 ```bash
+
 echo "Finished installation"
 ```
+
+[issues]: https://github.com/otto-aa/aw-watcher-terminal/issues
