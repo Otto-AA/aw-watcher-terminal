@@ -32,30 +32,31 @@ def main() -> None:
     fifo_path = "{}/aw-watcher-terminal-fifo".format(config.data_dir)
     setup_named_pipe(fifo_path)
 
-    # Start fifo listener and event_queue updater concurrently
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = []
-        futures.append(executor.submit(run_event_queue_updater))
-        futures.append(executor.submit(on_named_pipe_message,
-                       fifo_path,
-                       message_handler.handle_fifo_message))
+    """
+    Periodically read pipe for new messages
+    and update the event queue
+    """
+    pipe_fd = os.open(fifo_path, os.O_RDONLY | os.O_NONBLOCK)
+    with os.fdopen(pipe_fd) as pipe:
+        config.logger.info("Listening to pipe: {}".format(fifo_path))
+        while True:
+            # Read new messages from the named pipe
+            try:
+                message = pipe.read()
+                if message:
+                    message_handler.handle_fifo_message(message)
+            except Exception as e:
+                config.logger.error(e)
+                traceback.print_exc()
 
-        # Wait until a future raises an exception
-        try:
-            wait(futures, return_when=FIRST_EXCEPTION)
-        except (Exception, KeyboardInterrupt, SystemExit) as e:
-            config.logger.error('An exception was raised in a future')
-            config.logger.error(e)
-        finally:
-            config.logger.info('Setting config.is_running to False')
-            config.is_running = False
+            # Update event queue of the message handler
+            try:
+                message_handler.update_event_queue()
+            except Exception as e:
+                config.logger.error(e)
+                traceback.print_exc()
 
-        # Wait for all futures to properly exit
-        wait(futures)
-
-    config.logger.info('Doing cleanup')
-    if config.client:
-        config.client.disconnect()
+            sleep(1)
 
 
 def init_client() -> None:
@@ -88,17 +89,6 @@ def init_client() -> None:
         config.logger.info("Created bucket: {}".format(bucket_id))
 
 
-def run_event_queue_updater() -> None:
-    """Periodically update the event_queue from the message_handler"""
-    while config.is_running:
-        try:
-            message_handler.update_event_queue()
-        except Exception as e:
-            config.logger.error(e)
-            traceback.print_exc()
-        sleep(1)
-
-
 def setup_named_pipe(pipe_path: str) -> None:
     """Delete and create named pipe at specified path"""
     if os.path.exists(pipe_path):
@@ -106,27 +96,6 @@ def setup_named_pipe(pipe_path: str) -> None:
     if not os.path.exists(pipe_path):
         config.logger.debug("Creating pipe {}".format(pipe_path))
         os.mkfifo(pipe_path)
-
-
-def on_named_pipe_message(pipe_path: str,
-                          callback: Callable[[str], Any]) -> None:
-    """
-    Periodically read pipe for new messages
-    and call callback if one was found
-    """
-    pipe_fd = os.open(pipe_path, os.O_RDONLY | os.O_NONBLOCK)
-    with os.fdopen(pipe_fd) as pipe:
-        config.logger.info("Listening to pipe: {}".format(pipe_path))
-        while config.is_running:
-            message = pipe.read()
-            if message:
-                try:
-                    callback(message)
-                except Exception as e:
-                    config.logger.error(e)
-                    traceback.print_exc()
-
-            sleep(1)
 
 
 if __name__ == '__main__':
