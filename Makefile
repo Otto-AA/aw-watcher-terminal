@@ -8,8 +8,8 @@ endif
 build:
 	pip3 install $(pip_install_args)
 
-	# Install package
-	python3 setup.py install
+package:
+	pip3 install . --upgrade
 
 test:
 	python3 ./aw_watcher_terminal/test/test.py
