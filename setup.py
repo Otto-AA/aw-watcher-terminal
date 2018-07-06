@@ -18,7 +18,8 @@ setup(name='aw-watcher-terminal',
       },
       install_requires=[
           'aw-client(>=0.2.0)',
-          'aw-core(>=0.4.1)'
+          'aw-core(>=0.4.1)',
+          'wrapt(>=1.10.0)'
       ],
       classifiers=[
           'Programming Language :: Python :: 3'
