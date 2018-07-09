@@ -104,7 +104,7 @@ def parse_args(parser: argparse.ArgumentParser):
                 return wrapped(parsed_args, args_raw, *_args, **_kwargs)
             except (argparse.ArgumentError, argparse.ArgumentTypeError,
                     SystemExit) as e:
-                logger.error("Error while parsing args")
+                logger.error('Error while parsing args')
         return _execute(*args, **kwargs)
     return wrapper
 
@@ -173,18 +173,18 @@ class MessageHandler:
         """Set self.buckets and create these buckets if not existing"""
         self.buckets = {
             'commands': {
-                'id': '{}-commands_{}'.format(client_id, self.client.hostname),
+                'id': "{}-commands_{}".format(client_id, self.client.hostname),
                 'event_type': 'app.terminal.command'
             },
             'activity': {
-                'id': '{}-activity_{}'.format(client_id, self.client.hostname),
+                'id': "{}-activity_{}".format(client_id, self.client.hostname),
                 'event_type': 'app.terminal.activity'
             }
         }
 
         # Create buckets if not existing
         for key, bucket in self.buckets.items():
-            logger.debug('Creating bucket: {}'.format(bucket['id']))
+            logger.debug("Creating bucket: {}".format(bucket['id']))
             self.client.create_bucket(bucket['id'], bucket['event_type'],
                                       queued=True)
 
@@ -216,7 +216,7 @@ class MessageHandler:
             self._heartbeat(args_raw)
 
     @parse_args(parser_preopen)
-    @log_args("preopen", ["pid"])
+    @log_args('preopen', ['pid'])
     @store_pid_if_not_existing
     def _preopen(self, args: argparse.Namespace, args_raw: list) -> None:
         """Handle terminal creation"""
@@ -224,7 +224,7 @@ class MessageHandler:
         pass
 
     @parse_args(parser_preexec)
-    @log_args("preexec", ["pid", "command", "time"])
+    @log_args('preexec', ['pid', 'command', 'time'])
     @store_pid_if_not_existing
     def _preexec(self, args: argparse.Namespace, args_raw: list) -> None:
         """Send event containing command execution data"""
@@ -240,7 +240,7 @@ class MessageHandler:
                                            timestamp=args.timestamp)
 
     @parse_args(parser_precmd)
-    @log_args("precmd", ["pid", "exit_code", "time"])
+    @log_args('precmd', ['pid', 'exit_code', 'time'])
     @store_pid_if_not_existing
     def _precmd(self, args: argparse.Namespace, args_raw: list) -> None:
         """Update the stored event with duration and exit_code"""
@@ -265,13 +265,13 @@ class MessageHandler:
         process.event = None
 
     @parse_args(parser_preclose)
-    @log_args("preclose", ["pid"])
+    @log_args('preclose', ['pid'])
     def _preclose(self, args: argparse.Namespace, args_raw: list) -> None:
         """Remove pid and related data from terminal_processes_data"""
         self._terminal_sessions.pop(args.pid)
 
     @parse_args(parser_heartbeat)
-    @log_args("heartbeat", ["pid"])
+    @log_args('heartbeat', ['pid'])
     @store_pid_if_not_existing
     def _heartbeat(self, args: argparse.Namespace, args_raw: list) -> None:
         """Send heartbeat to activity bucket"""
@@ -295,7 +295,7 @@ class MessageHandler:
         )
 
         if inserted_heartbeat and inserted_heartbeat.id:
-            logger.debug("Successfully sent heartbeat")
+            logger.debug('Successfully sent heartbeat')
 
     def _insert_event(self, *args, **kwargs) -> Event:
         """Send event to the aw-server"""

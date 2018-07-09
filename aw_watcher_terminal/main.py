@@ -63,8 +63,8 @@ def main() -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Terminal activity watcher.')
-    parser.add_argument("--testing", dest="testing", action="store_true")
-    parser.add_argument("--verbose", dest="verbose", action="store_true")
+    parser.add_argument('--testing', dest='testing', action='store_true')
+    parser.add_argument('--verbose', dest='verbose', action='store_true')
     return parser.parse_args()
 
 
