@@ -140,8 +140,8 @@ class MessageHandler:
     def __init__(self, testing=False, send_commands=True,
                  send_heartbeats=True):
         # Create client
-        self.client = ActivityWatchClient(client_id, testing=testing)
-        self.client.connect()
+        self._client = ActivityWatchClient(client_id, testing=testing)
+        self._client.connect()
         self._init_buckets()
 
         # Settings
@@ -167,26 +167,28 @@ class MessageHandler:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.client.disconnect()
+        self._client.disconnect()
 
     def _init_buckets(self):
-        """Set self.buckets and create these buckets if not existing"""
-        self.buckets = {
+        """Set self._buckets and create these buckets if not existing"""
+        self._buckets = {
             'commands': {
-                'id': "{}-commands_{}".format(client_id, self.client.hostname),
+                'id': "{}-commands_{}".format(client_id,
+                                              self._client.hostname),
                 'event_type': 'app.terminal.command'
             },
             'activity': {
-                'id': "{}-activity_{}".format(client_id, self.client.hostname),
+                'id': "{}-activity_{}".format(client_id,
+                                              self._client.hostname),
                 'event_type': 'app.terminal.activity'
             }
         }
 
         # Create buckets if not existing
-        for key, bucket in self.buckets.items():
+        for key, bucket in self._buckets.items():
             logger.debug("Creating bucket: {}".format(bucket['id']))
-            self.client.create_bucket(bucket['id'], bucket['event_type'],
-                                      queued=True)
+            self._client.create_bucket(bucket['id'], bucket['event_type'],
+                                       queued=True)
 
     def update_event_queue(self):
         self._event_queue.update()
@@ -211,7 +213,6 @@ class MessageHandler:
             else:
                 self._event_handlers[args.event](args_raw)
 
-        # Send heartbeat if the option is activated
         if self.send_heartbeats:
             self._heartbeat(args_raw)
 
@@ -287,8 +288,8 @@ class MessageHandler:
             timestamp=args.timestamp
         )
 
-        inserted_heartbeat = self.client.heartbeat(
-            self.buckets['activity']['id'],
+        inserted_heartbeat = self._client.heartbeat(
+            self._buckets['activity']['id'],
             event,
             pulsetime=self.pulsetime,
             queued=True
@@ -300,10 +301,10 @@ class MessageHandler:
     def _insert_event(self, *args, **kwargs) -> Event:
         """Send event to the aw-server"""
         event = Event(*args, **kwargs)
-        inserted_event = self.client.insert_event(
-            self.buckets['commands']['id'], event)
+        inserted_event = self._client.insert_event(
+            self._buckets['commands']['id'], event)
 
-        # The event returned from insert_event has been assigned an id by aw-server
+        # aw-server assigned the event an id
         assert inserted_event.id is not None
         logger.debug("Successfully sent event")
 
@@ -311,7 +312,10 @@ class MessageHandler:
 
 
 class EventQueue:
-    # TODO: Explain me
+    """
+    Store events and trigger the callback when the specified timestamp
+    is {time_buffer} seconds ago.
+    """
 
     def __init__(self, *, callback, time_buffer=5):
         # events indexed by the timestamp
@@ -319,7 +323,8 @@ class EventQueue:
         # timestamp keys for the events sorted from oldest to newest
         self._sorted_timestamps = []
 
-        # TODO: Explain me
+        # time_buffer specifies how much seconds have to pass before
+        # the callback gets triggered (starting time is the timestamp)
         self.time_buffer = time_buffer
 
         self.callback = callback
@@ -354,7 +359,8 @@ class EventQueue:
             self.callback(event)
 
     def event_should_be_processed(self, *, timestamp):
-        # TODO: Explain me
+        # Return True if {time_buffer} seconds passed
+        # since the timestamp
 
         cur_time = datetime.now(timezone.utc)
         oldest_event_time = self._sorted_timestamps[0]

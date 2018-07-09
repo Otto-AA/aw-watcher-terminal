@@ -28,7 +28,10 @@ def main() -> None:
                   testing=args.testing, verbose=args.verbose,
                   log_stderr=True, log_file=True)
 
+    # Create MessageHandler to which the fifo messages will be passed
     with MessageHandler(testing=args.testing) as message_handler:
+
+        # Setup and open named pipe
         fifo_path = "{}/aw-watcher-terminal-fifo".format(
             get_data_dir(client_id)
         )
@@ -37,6 +40,7 @@ def main() -> None:
 
         with os.fdopen(pipe_fd) as pipe:
             logger.info("Listening to pipe: {}".format(fifo_path))
+
             """
             Periodically read pipe for new messages
             and update the event queue
