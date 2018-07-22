@@ -1,102 +1,75 @@
 #!/usr/bin/env python3
-import traceback
+
 import os
-from typing import Union, Callable, Any
-from concurrent.futures import ThreadPoolExecutor, wait, FIRST_EXCEPTION
 from time import sleep
+import argparse
+import logging
+import traceback
+from aw_core.log import setup_logging
+from aw_core.dirs import get_data_dir
 from aw_client import ActivityWatchClient
-from aw_watcher_terminal import config
-from aw_watcher_terminal import message_handler
+from aw_watcher_terminal.message_handler import MessageHandler
+
+
+client_id = 'aw-watcher-terminal'
+logger = logging.getLogger(client_id)
 
 
 def main() -> None:
-    """Start aw-watcher-terminal"""
     """
-    Usage:
-    To pass events to the terminal, write the message to the named pipe
-    (e.g. echo "$my_message" > "$pipe_path").
-    The message arguments which are needed for the individual events are
-    specified in the parsers (base parser + event specific parser) in
-    message_handler.py.
-    Messages need to be properly escaped. You gonna need to add a backslash
-    in front of every
-    double quote (") and every backslash preceding a double quote (\")
-    For instance, the command 'echo "Hello \"World\""' should be escaped
-    like '--command echo \"Hello \\\"World\\\"\"'
+    Start aw-watcher-terminal
+    See the docs for usage
     """
+
+    args = parse_args()
+
     # Load configurations
-    config.load_config()
-    config.logger.info("Starting aw-watcher-terminal")
+    setup_logging(client_id,
+                  testing=args.testing, verbose=args.verbose,
+                  log_stderr=True, log_file=True)
 
-    init_client()
-    fifo_path = "{}/aw-watcher-terminal-fifo".format(config.data_dir)
-    setup_named_pipe(fifo_path)
+    # Create MessageHandler to which the fifo messages will be passed
+    with MessageHandler(testing=args.testing) as message_handler:
 
-    # Start fifo listener and event_queue updater concurrently
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = []
-        futures.append(executor.submit(run_event_queue_updater))
-        futures.append(executor.submit(on_named_pipe_message,
-                       fifo_path,
-                       message_handler.handle_fifo_message))
+        # Setup and open named pipe
+        fifo_path = "{}/aw-watcher-terminal-fifo".format(
+            get_data_dir(client_id)
+        )
+        setup_named_pipe(fifo_path)
+        pipe_fd = os.open(fifo_path, os.O_RDONLY | os.O_NONBLOCK)
 
-        # Wait until a future raises an exception
-        try:
-            wait(futures, return_when=FIRST_EXCEPTION)
-        except (Exception, KeyboardInterrupt, SystemExit) as e:
-            config.logger.error('An exception was raised in a future')
-            config.logger.error(e)
-        finally:
-            config.logger.info('Setting config.is_running to False')
-            config.is_running = False
+        with os.fdopen(pipe_fd) as pipe:
+            logger.info("Listening to pipe: {}".format(fifo_path))
 
-        # Wait for all futures to properly exit
-        wait(futures)
+            """
+            Periodically read pipe for new messages
+            and update the event queue
+            """
+            while True:
+                # Read new messages from the named pipe
+                try:
+                    message = pipe.read()
+                    if message:
+                        message_handler.handle_fifo_message(message)
+                except Exception as e:
+                    logger.error(e)
+                    traceback.print_exc()
 
-    config.logger.info('Doing cleanup')
-    if config.client:
-        config.client.disconnect()
+                # Update event queue of the message handler
+                try:
+                    message_handler.update_event_queue()
+                except Exception as e:
+                    logger.error(e)
+                    traceback.print_exc()
 
-
-def init_client() -> None:
-    """Initialize the AW client and bucket"""
-
-    # Create client
-    config.client = ActivityWatchClient(config.client_id,
-                                        testing=config.testing)
-    config.client.connect()
-
-    config.logger.info("Initialized AW Client")
-
-    # Create Buckets if not already existing
-    config.bucket_ids['command-watcher'] = "{}-{}_{}".format(
-        config.client_id,
-        'commands',
-        config.client.hostname
-    )
-    config.bucket_ids['activity-watcher'] = "{}-{}_{}".format(
-        config.client_id,
-        'activity',
-        config.client.hostname
-    )
-
-    for key, bucket_id in config.bucket_ids.items():
-        event_type = config.event_types[key]
-        config.client.create_bucket(bucket_id,
-                                    event_type=event_type,
-                                    queued=True)
-        config.logger.info("Created bucket: {}".format(bucket_id))
+                sleep(1)
 
 
-def run_event_queue_updater() -> None:
-    """Periodically update the event_queue from the message_handler"""
-    while config.is_running:
-        try:
-            message_handler.update_event_queue()
-        except Exception as e:
-            config.logger.error(e)
-            traceback.print_exc()
-        sleep(1)
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description='Terminal activity watcher.')
+    parser.add_argument('--testing', dest='testing', action='store_true')
+    parser.add_argument('--verbose', dest='verbose', action='store_true')
+    return parser.parse_args()
 
 
 def setup_named_pipe(pipe_path: str) -> None:
@@ -104,29 +77,7 @@ def setup_named_pipe(pipe_path: str) -> None:
     if os.path.exists(pipe_path):
         os.remove(pipe_path)
     if not os.path.exists(pipe_path):
-        config.logger.debug("Creating pipe {}".format(pipe_path))
         os.mkfifo(pipe_path)
-
-
-def on_named_pipe_message(pipe_path: str,
-                          callback: Callable[[str], Any]) -> None:
-    """
-    Periodically read pipe for new messages
-    and call callback if one was found
-    """
-    pipe_fd = os.open(pipe_path, os.O_RDONLY | os.O_NONBLOCK)
-    with os.fdopen(pipe_fd) as pipe:
-        config.logger.info("Listening to pipe: {}".format(pipe_path))
-        while config.is_running:
-            message = pipe.read()
-            if message:
-                try:
-                    callback(message)
-                except Exception as e:
-                    config.logger.error(e)
-                    traceback.print_exc()
-
-            sleep(1)
 
 
 if __name__ == '__main__':
