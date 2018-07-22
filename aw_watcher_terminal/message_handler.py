@@ -68,66 +68,6 @@ parser_heartbeat = argparse.ArgumentParser(parents=[parser_base])
 parser_heartbeat.description = 'Parses activity heartbeats'
 
 
-@wrapt.decorator
-def store_pid_if_not_existing(wrapped, instance, args, kwargs):
-    """Add the pid to _terminal_processes_data if not existing"""
-    parsed_args = args[0]
-    pid = parsed_args.pid
-
-    if pid not in instance._terminal_sessions:
-        instance._terminal_sessions[pid] = TerminalSessionData(pid)
-
-    return wrapped(*args, **kwargs)
-
-
-def log_args(func_name: str, keys: list):
-    """Log the parsed args in debug mode"""
-    @wrapt.decorator
-    def wrapper(wrapped, instance, args, kwargs):
-        parsed_args = args[0]
-        logger.debug(func_name)
-        for key in keys:
-            if hasattr(parsed_args, key):
-                logger.debug("| {}={}".format(key, getattr(parsed_args, key)))
-
-        return wrapped(*args, **kwargs)
-    return wrapper
-
-
-def parse_args(parser: argparse.ArgumentParser):
-    """Parse a list of arguments with the specified parser"""
-    @wrapt.decorator
-    def wrapper(wrapped, instance, args, kwargs):
-        def _execute(args_raw: list, *_args, **_kwargs):
-            try:
-                parsed_args, unknown_args = parser.parse_known_args(args_raw)
-                return wrapped(parsed_args, args_raw, *_args, **_kwargs)
-            except (argparse.ArgumentError, argparse.ArgumentTypeError,
-                    SystemExit) as e:
-                logger.error('Error while parsing args')
-        return _execute(*args, **kwargs)
-    return wrapper
-
-
-@wrapt.decorator
-def split_str_into_cli_args(wrapped, instance, args, kwargs):
-    """Split a string containing cli args into a list of cli args"""
-    def _execute(message: str, *_args, **_kwargs):
-        cli_args = shlex.split(message)
-        return wrapped(cli_args, *_args, **_kwargs)
-    return _execute(*args, **kwargs)
-
-
-@wrapt.decorator
-def for_line_in_str(wrapped, instance, args, kwargs):
-    """Call the decorated function once per line of the string"""
-    def _execute(message: str, *_args, **_kwargs) -> None:
-        for line in message.split('\n'):
-            if len(line):
-                wrapped(line, *_args, **_kwargs)
-    return _execute(*args, **kwargs)
-
-
 class TerminalSessionData:
     """Store data belonging to an opened terminal"""
     def __init__(self, pid: str):
@@ -160,7 +100,6 @@ class MessageHandler:
             'preclose': self._preclose
         }
 
-        # TODO: Update terminal sessions implementation
         self._terminal_sessions = {}
 
     def __enter__(self):
@@ -193,42 +132,47 @@ class MessageHandler:
     def update_event_queue(self):
         self._event_queue.update()
 
-    @for_line_in_str
-    @split_str_into_cli_args
-    @parse_args(parser_base)
-    @log_args('handle_fifo_message', ['event'])
-    def handle_fifo_message(self, args, args_raw):
-        # Make sure that events are called in the right order
-        # (based on args.timestamp) by passing it to the event queue
-        # The event queue will trigger the callback when the time_buffer
-        # is exceeded
-        self._event_queue.add_event(args_raw, args.timestamp)
+    def handle_fifo_message(self, message):
+        for line in message.split('\n'):
+            if not len(line):
+                continue
 
-    @parse_args(parser_base)
-    @log_args('handle_event', ['event'])
-    def _handle_event(self, args, args_raw):
+            cli_args = shlex.split(line)
+            args, unknown_args = parser_base.parse_known_args(cli_args)
+
+            # Make sure that events are called in the right order
+            # (based on args.timestamp) by passing it to the event queue
+            # The event queue will trigger the callback when the time_buffer
+            # is exceeded
+            logger.debug("adding event to event_queue: {}".format(cli_args))
+            self._event_queue.add_event(cli_args, args.timestamp)
+
+    def _handle_event(self, cli_args):
+        logger.debug("handling event: {}".format(cli_args))
+        args, unknown_args = parser_base.parse_known_args(cli_args)
+
+        # Store terminal session if not already existing
+        pid = args.pid
+        if pid not in self._terminal_sessions:
+            self._terminal_sessions[pid] = TerminalSessionData(pid)
+
         if self.send_commands:
             if args.event not in self._event_handlers:
                 logger.error("Unknown event: {}".format(args.event))
             else:
-                self._event_handlers[args.event](args_raw)
+                self._event_handlers[args.event](cli_args)
 
         if self.send_heartbeats:
-            self._heartbeat(args_raw)
+            self._heartbeat(cli_args)
 
-    @parse_args(parser_preopen)
-    @log_args('preopen', ['pid'])
-    @store_pid_if_not_existing
-    def _preopen(self, args: argparse.Namespace, args_raw: list) -> None:
+    def _preopen(self, cli_args: list) -> None:
         """Handle terminal creation"""
-        # Terminal process id stored by decorator
         pass
 
-    @parse_args(parser_preexec)
-    @log_args('preexec', ['pid', 'command', 'time'])
-    @store_pid_if_not_existing
-    def _preexec(self, args: argparse.Namespace, args_raw: list) -> None:
+    def _preexec(self, cli_args: list) -> None:
         """Send event containing command execution data"""
+        args, unknown_args = parser_preexec.parse_known_args(cli_args)
+
         process = self._terminal_sessions[args.pid]
         event_data = {
             'command': args.command,
@@ -240,11 +184,9 @@ class MessageHandler:
         process.event = self._insert_event(data=event_data,
                                            timestamp=args.timestamp)
 
-    @parse_args(parser_precmd)
-    @log_args('precmd', ['pid', 'exit_code', 'time'])
-    @store_pid_if_not_existing
-    def _precmd(self, args: argparse.Namespace, args_raw: list) -> None:
+    def _precmd(self, cli_args: list) -> None:
         """Update the stored event with duration and exit_code"""
+        args, unknown_args = parser_precmd.parse_known_args(cli_args)
         process = self._terminal_sessions[args.pid]
 
         if process.event is None:
@@ -265,17 +207,14 @@ class MessageHandler:
                            duration=time_delta)
         process.event = None
 
-    @parse_args(parser_preclose)
-    @log_args('preclose', ['pid'])
     def _preclose(self, args: argparse.Namespace, args_raw: list) -> None:
         """Remove pid and related data from terminal_processes_data"""
+        args, unknown_args = parser_preclose.parse_known_args(cli_args)
         self._terminal_sessions.pop(args.pid)
 
-    @parse_args(parser_heartbeat)
-    @log_args('heartbeat', ['pid'])
-    @store_pid_if_not_existing
-    def _heartbeat(self, args: argparse.Namespace, args_raw: list) -> None:
+    def _heartbeat(self, cli_args: list) -> None:
         """Send heartbeat to activity bucket"""
+        args, unknown_args = parser_heartbeat.parse_known_args(cli_args)
         process = self._terminal_sessions[args.pid]
 
         event_data = {
