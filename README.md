@@ -1,4 +1,4 @@
-# aw-watcher-terminal [WIP]
+# aw-watcher-terminal [Unmaintained]
 
 Extension to [ActivityWatch](https://github.com/activitywatch/activitywatch) which allows you to track the commands you've written and time spent in terminals.
 
